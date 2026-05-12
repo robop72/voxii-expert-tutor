@@ -7,8 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
-from langchain_openai import OpenAIEmbeddings
-from langchain_anthropic import ChatAnthropic
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_chroma import Chroma
 from langchain_community.chat_message_histories import ChatMessageHistory
 from build_prompt import build_system_prompt
@@ -41,7 +40,7 @@ vector_db = Chroma(
 )
 
 # Lower temperature (0.2) keeps the AI strictly on the "Master Pedagogue" path
-llm = ChatAnthropic(model="claude-haiku-4-5-20251001", temperature=0.2)
+llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.2)
 
 # 3. Memory Store for Session History
 history_store = {}
