@@ -1,6 +1,7 @@
 ﻿fastapi
 uvicorn
 langchain-openai
+langchain-anthropic
 langchain-chroma
 langchain-community
 langchain
