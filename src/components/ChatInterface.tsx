@@ -194,7 +194,7 @@ export default function ChatInterface({
             <div className="w-full flex items-start gap-2 px-3 py-2 rounded-xl border border-blue-300 dark:border-blue-700/50 bg-blue-50 dark:bg-blue-900/20 mt-2">
               <span className="text-blue-500 dark:text-blue-400 text-xs mt-0.5 flex-shrink-0">🔒</span>
               <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-snug">
-                <span className="font-semibold text-gray-800 dark:text-gray-200">Stay safe:</span> Don't share your name, school, or contact details. Voxii is here for {subject.toLowerCase()} only.
+                <span className="font-semibold text-gray-800 dark:text-gray-200">Stay safe:</span> Don't share your name, school, or contact details. Voxii is here to help you learn.
               </p>
             </div>
 
