@@ -11,8 +11,10 @@ interface Props {
   isNaplanMode?: boolean;
   messages: Message[];
   isLoading: boolean;
+  isAtTurnLimit?: boolean;
   sendMessage: (text: string) => void;
   cancelMessage: () => void;
+  onNewChat?: () => void;
   studentName?: string;
 }
 
@@ -63,7 +65,8 @@ function ThinkingBubble() {
 
 export default function ChatInterface({
   yearLevel, subject, isNaplanMode = false,
-  messages, isLoading, sendMessage, cancelMessage, studentName,
+  messages, isLoading, isAtTurnLimit = false,
+  sendMessage, cancelMessage, onNewChat, studentName,
 }: Props) {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -94,7 +97,21 @@ export default function ChatInterface({
   const hasMessages = messages.length > 0;
   const greeting = studentName ? `Hi ${studentName}!` : 'Hello!';
 
-  const inputBar = (
+  const inputBar = isAtTurnLimit ? (
+    <div className="flex flex-col items-center gap-2 py-3">
+      <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+        Session limit reached. Start a new chat to keep going.
+      </p>
+      {onNewChat && (
+        <button
+          onClick={onNewChat}
+          className="px-4 py-2 rounded-full text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white transition-colors"
+        >
+          Start new chat
+        </button>
+      )}
+    </div>
+  ) : (
     <div className="flex items-end gap-2 bg-gray-100/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 rounded-3xl px-4 py-3 focus-within:border-gray-400 dark:focus-within:border-gray-600 transition-colors">
       <button className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
