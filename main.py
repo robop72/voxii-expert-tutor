@@ -101,17 +101,10 @@ async def root():
         "database_synced": os.path.exists("./vcaa_json_index")
     }
 
-MAX_TURNS = 5
-
 # 6. The Expert Chat Endpoint
 @app.post("/chat")
 async def chat(request: ChatRequest):
     history = get_session_history(request.session_id)
-
-    # --- SAFEGUARD: MAX TURNS ---
-    user_turn_count = sum(1 for m in history.messages if m.type == "human")
-    if user_turn_count >= MAX_TURNS:
-        return {"response": "We've covered a lot of ground this session! Start a new chat to keep going.", "safeguard": True}
 
     # --- SUBJECT & YEAR NORMALIZATION ---
     sub_map = {"maths": "Mathematics", "mathematics": "Mathematics", "science": "Science", "english": "English"}

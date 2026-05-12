@@ -38,7 +38,7 @@ export default function App() {
   }, [profile]);
 
   const {
-    sessions, currentId, messages, isLoading, isAtTurnLimit,
+    sessions, currentId, messages, isLoading,
     sendMessage, startNewChat, loadSession, deleteSession,
     togglePin, renameSession, cancelMessage,
   } = useChat({ yearLevel, subject, isNaplanMode, studentProfile: profile });
@@ -170,10 +170,8 @@ export default function App() {
             isNaplanMode={isNaplanMode}
             messages={messages}
             isLoading={isLoading}
-            isAtTurnLimit={isAtTurnLimit}
             sendMessage={sendMessage}
             cancelMessage={cancelMessage}
-            onNewChat={handleNewChat}
             studentName={profile?.student_name || undefined}
           />
         </div>

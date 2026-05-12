@@ -166,7 +166,5 @@ export function useChat({ yearLevel, subject, isNaplanMode = false, studentProfi
   }, []);
 
   const messages = sessions.find(s => s.id === currentId)?.messages ?? [];
-  const userTurns = messages.filter(m => m.role === 'user').length;
-  const isAtTurnLimit = userTurns >= 5;
-  return { sessions, currentId, messages, isLoading, isAtTurnLimit, sendMessage, startNewChat, loadSession, deleteSession, togglePin, renameSession, cancelMessage };
+  return { sessions, currentId, messages, isLoading, sendMessage, startNewChat, loadSession, deleteSession, togglePin, renameSession, cancelMessage };
 }
