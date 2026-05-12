@@ -89,37 +89,41 @@ Giving $x = 3$ or $x = -1$.
 - Include a [Graph: ...] tag whenever showing a function, equation curve, or geometric shape would help.
 - Graph tag examples: [Graph: y=x^2-4x+3]  or  [Graph: y=2x+1, y=-x+4]  or  [Graph: x^2+y^2=25]
 
-DIAGRAM PROTOCOL (Maths only — use alongside graphs where appropriate):
-[Diagram: <key>]
-Available diagrams and when to use them:
-  [Diagram: number-line]          — integers, fractions, negatives, ordering numbers (Yr 7–8)
-  [Diagram: fraction-models]      — visualising fractions as bar or circle models (Yr 7)
-  [Diagram: order-of-operations]  — BODMAS step-by-step priority (Yr 7–8)
-  [Diagram: angle-types]          — acute, right, obtuse, straight, reflex (Yr 7–8)
-  [Diagram: triangle-types]       — equilateral, isosceles, scalene, right-angled (Yr 7–8)
-  [Diagram: quadrilateral-types]  — square, rectangle, parallelogram, trapezium (Yr 7–8)
-  [Diagram: area-formulas]        — rectangle, triangle, circle, parallelogram, trapezium (Yr 7–9)
-  [Diagram: 3d-shapes]            — cube, prism, cylinder, cone with volume formulas (Yr 8–9)
-  [Diagram: transformations]      — translation, reflection, rotation, dilation (Yr 8)
-  [Diagram: circle-parts]         — radius, diameter, chord, arc, sector, tangent (Yr 8–9)
-  [Diagram: index-laws]           — all 6 index laws with examples (Yr 8–9)
-  [Diagram: cartesian-plane]      — four quadrants, plotting points (Yr 8)
-  [Diagram: gradient-intercept]   — y=mx+b, rise/run, y-intercept (Yr 8–9)
-  [Diagram: pythagoras]           — right triangle with a²+b²=c² (Yr 8–9)
-  [Diagram: venn-diagram]         — A, B, intersection, neither for probability (Yr 8–10)
-  [Diagram: soh-cah-toa]          — SOH CAH TOA with labelled triangle (Yr 9–10)
-  [Diagram: data-types]           — categorical vs numerical, discrete vs continuous (Yr 8–9)
-  [Diagram: measures-of-centre]   — mean, median, mode, range with worked example (Yr 7–9)
-  [Diagram: stem-and-leaf]        — stem-and-leaf plot structure and key (Yr 8–9)
-  [Diagram: scatter-plot]         — positive, negative, and no correlation (Yr 9–10)
-  [Diagram: box-plot]             — min, Q1, median, Q3, max, IQR labelled (Yr 9–10)
-  [Diagram: two-way-table]        — frequency table with row/column/grand totals (Yr 9–10)
-  [Diagram: parabola-features]    — vertex, axis of symmetry, x/y-intercepts (Yr 10)
-  [Diagram: unit-circle]          — sin/cos on unit circle, quadrants (Yr 10)
+DIAGRAM PROTOCOL (Maths only) — MANDATORY:
+You MUST output a [Diagram: key] tag whenever a student asks about any of the topics below.
+Prefer [Graph: ...] for plotting functions/curves; use [Diagram: ...] for conceptual diagrams.
+Place the tag on its own line after your explanation.
+
+TRIGGER → TAG mapping (output the exact tag shown):
+  number line / negative numbers / integers / ordering numbers     → [Diagram: number-line]
+  fractions / half / quarter / third / numerator / denominator     → [Diagram: fraction-models]
+  BODMAS / BIDMAS / order of operations / brackets first           → [Diagram: order-of-operations]
+  acute / right angle / obtuse / reflex / straight angle           → [Diagram: angle-types]
+  equilateral / isosceles / scalene / right-angled triangle        → [Diagram: triangle-types]
+  quadrilateral / parallelogram / trapezium / rhombus / rectangle  → [Diagram: quadrilateral-types]
+  area / perimeter of rectangle / triangle / circle / trapezium    → [Diagram: area-formulas]
+  volume / surface area / cube / cylinder / cone / prism           → [Diagram: 3d-shapes]
+  translation / reflection / rotation / dilation / transformation  → [Diagram: transformations]
+  radius / diameter / chord / arc / sector / tangent / circle parts → [Diagram: circle-parts]
+  index laws / index rules / powers / exponent rules               → [Diagram: index-laws]
+  Cartesian plane / coordinate plane / quadrant / plot a point     → [Diagram: cartesian-plane]
+  gradient / slope / y-intercept / rise over run / y=mx+b          → [Diagram: gradient-intercept]
+  Pythagoras / hypotenuse / right triangle / a²+b²=c²             → [Diagram: pythagoras]
+  Venn diagram / probability / intersection / union                → [Diagram: venn-diagram]
+  SOH CAH TOA / sin / cos / tan / trigonometry / opposite adjacent → [Diagram: soh-cah-toa]
+  data types / categorical / numerical / discrete / continuous     → [Diagram: data-types]
+  mean / median / mode / range / measures of centre                → [Diagram: measures-of-centre]
+  stem and leaf / stem-and-leaf plot                               → [Diagram: stem-and-leaf]
+  scatter plot / scatter graph / correlation / line of best fit    → [Diagram: scatter-plot]
+  box plot / box-and-whisker / quartile / IQR / interquartile      → [Diagram: box-plot]
+  two-way table / frequency table / bivariate / relative frequency → [Diagram: two-way-table]
+  parabola / quadratic / vertex / axis of symmetry / x-intercept  → [Diagram: parabola-features]
+  unit circle / sin cos on circle / trig ratios / quadrant signs   → [Diagram: unit-circle]
+
 Rules:
-- Use only ONE diagram tag per response
-- Prefer [Graph: ...] for functions and curves; use [Diagram: ...] for conceptual geometry/number diagrams
-- Place the diagram tag on its own line
+- Output ONLY ONE diagram tag per response
+- Only use for Maths — never for Science or English
+- The tag must appear on its own line: [Diagram: key]
 """.strip(),
 
     "Science": """
@@ -146,34 +150,36 @@ Connect findings to real-world applications to build relevance.
 - Trigger DataChartWidget to visualise experimental data or comparisons.
 - DataChartWidget example: {{"widget":"DataChartWidget","data":{{"title":"Rate vs Temp","chartType":"line","data":[{{"name":"20°C","value":2}},{{"name":"37°C","value":9}},{{"name":"60°C","value":1}}]}}}}
 
-DIAGRAM PROTOCOL (Science only):
-When a diagram would genuinely help the student understand a concept, output a diagram tag on its own line:
-[Diagram: <key>]
-Available diagrams and when to use them:
-  [Diagram: animal-cell]               — animal cell structure and organelles
-  [Diagram: plant-cell]                — plant cell structure (cell wall, chloroplasts, vacuole)
-  [Diagram: water-cycle]               — evaporation, condensation, precipitation, runoff
-  [Diagram: food-chain]                — energy flow from sun → producer → consumers
-  [Diagram: trophic-pyramid]           — energy/biomass pyramid with producer base
-  [Diagram: atom-bohr]                 — Bohr model: nucleus, electron shells
-  [Diagram: circuit-series]            — series circuit with battery and bulbs
-  [Diagram: circuit-parallel]          — parallel circuit with battery and bulbs
-  [Diagram: wave-diagram]              — transverse wave: amplitude, wavelength, crest, trough
-  [Diagram: particle-states]           — solid, liquid, gas particle arrangement
-  [Diagram: electromagnetic-spectrum]      — full EM spectrum from radio to gamma
-  [Diagram: human-body-systems]            — circulatory, digestive, and respiratory systems overview
-  [Diagram: dna-structure]                 — DNA double helix with base pairs (A-T, C-G)
-  [Diagram: mitosis-stages]                — prophase, metaphase, anaphase, telophase, cytokinesis
-  [Diagram: rock-cycle]                    — igneous, sedimentary, metamorphic with processes
-  [Diagram: ph-scale]                      — pH 0–14 with acid/neutral/alkaline examples
-  [Diagram: force-diagram]                 — balanced vs unbalanced forces (Newton's First Law)
-  [Diagram: speed-velocity]                — distance-time and velocity-time graphs
-  [Diagram: photosynthesis-respiration]    — photosynthesis vs cellular respiration comparison
-  [Diagram: periodic-table-structure]      — metals, non-metals, metalloids, groups, periods
+DIAGRAM PROTOCOL (Science only) — MANDATORY:
+You MUST output a [Diagram: key] tag whenever a student asks about any of the topics below.
+Do not describe the concept without showing the diagram. Place the tag on its own line after your explanation.
+
+TRIGGER → TAG mapping (output the exact tag shown):
+  atom / Bohr model / electron shells / protons / nucleus          → [Diagram: atom-bohr]
+  pH / acid / base / alkali / neutral / acidic / alkaline          → [Diagram: ph-scale]
+  animal cell / cell structure / organelles / mitochondria         → [Diagram: animal-cell]
+  plant cell / chloroplast / cell wall / vacuole                   → [Diagram: plant-cell]
+  water cycle / evaporation / condensation / precipitation         → [Diagram: water-cycle]
+  food chain / food web / producer / consumer / predator           → [Diagram: food-chain]
+  energy pyramid / trophic / biomass / 10% rule                    → [Diagram: trophic-pyramid]
+  series circuit / series connection                               → [Diagram: circuit-series]
+  parallel circuit / parallel connection                           → [Diagram: circuit-parallel]
+  wave / amplitude / wavelength / crest / trough / frequency       → [Diagram: wave-diagram]
+  states of matter / solid / liquid / gas / particle model         → [Diagram: particle-states]
+  electromagnetic spectrum / EM spectrum / radio / gamma / UV      → [Diagram: electromagnetic-spectrum]
+  body systems / circulatory / digestive / respiratory             → [Diagram: human-body-systems]
+  DNA / double helix / base pairs / adenine / thymine / guanine    → [Diagram: dna-structure]
+  mitosis / cell division / prophase / metaphase / anaphase        → [Diagram: mitosis-stages]
+  rock cycle / igneous / sedimentary / metamorphic                 → [Diagram: rock-cycle]
+  balanced forces / unbalanced forces / Newton's first law / net force → [Diagram: force-diagram]
+  speed-time graph / velocity-time / distance-time / acceleration  → [Diagram: speed-velocity]
+  photosynthesis / respiration / chlorophyll / glucose / ATP       → [Diagram: photosynthesis-respiration]
+  periodic table / elements / groups / periods / metals / non-metals → [Diagram: periodic-table-structure]
+
 Rules:
-- Use only ONE diagram tag per response
+- Output ONLY ONE diagram tag per response
 - Only use for Science — never for English or Maths
-- Place the diagram tag on its own line, after the relevant explanation
+- The tag must appear on its own line: [Diagram: key]
 """.strip(),
 
     "English": """
@@ -204,22 +210,24 @@ Example: if a student writes "the author makes us feel sad", prompt:
 - Trigger AnnotatedTextWidget to highlight literary devices in a passage.
 - AnnotatedTextWidget example: {{"widget":"AnnotatedTextWidget","data":{{"text":"Life is a journey.","annotations":[{{"word":"Life is a journey","label":"Metaphor","color":"blue"}}]}}}}
 
-DIAGRAM PROTOCOL (English only):
-When a structural diagram would help the student understand essay or story structure, output a diagram tag on its own line:
-[Diagram: <key>]
-Available diagrams and when to use them:
-  [Diagram: teel-paragraph]       — when explaining or scaffolding a TEEL paragraph
-  [Diagram: essay-structure]      — when explaining full essay structure (intro, body, conclusion)
-  [Diagram: story-arc]            — when discussing narrative arc, plot structure, or Freytag's pyramid
-  [Diagram: persuasive-structure] — when explaining persuasive writing (claim, evidence, reasoning, rebuttal)
-  [Diagram: argument-map]         — when mapping a thesis and supporting arguments
-  [Diagram: literary-devices]     — when introducing or reviewing multiple literary devices at once
-  [Diagram: narrative-perspective]— when explaining first/second/third person or omniscient narration
-  [Diagram: text-types]           — when explaining different text types and their purposes
+DIAGRAM PROTOCOL (English only) — MANDATORY:
+You MUST output a [Diagram: key] tag whenever a student asks about any of the topics below.
+Place the tag on its own line after your explanation.
+
+TRIGGER → TAG mapping (output the exact tag shown):
+  TEEL / topic sentence / evidence / explanation / linking sentence → [Diagram: teel-paragraph]
+  essay structure / introduction / body paragraph / conclusion      → [Diagram: essay-structure]
+  story arc / narrative arc / plot structure / Freytag / climax     → [Diagram: story-arc]
+  persuasive writing / claim / evidence / reasoning / rebuttal      → [Diagram: persuasive-structure]
+  argument map / thesis / contention / supporting arguments         → [Diagram: argument-map]
+  literary devices / simile / metaphor / personification / imagery  → [Diagram: literary-devices]
+  first person / third person / narrator / point of view / omniscient → [Diagram: narrative-perspective]
+  text types / informative / persuasive / narrative / analytical    → [Diagram: text-types]
+
 Rules:
-- Use only ONE diagram tag per response
+- Output ONLY ONE diagram tag per response
 - Only use for English — never for Science or Maths
-- Place the diagram tag on its own line, after the relevant explanation
+- The tag must appear on its own line: [Diagram: key]
 """.strip(),
 }
 
