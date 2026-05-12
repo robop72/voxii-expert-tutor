@@ -117,7 +117,7 @@ export default function App() {
                 value={yearLevel}
                 onChange={e => {
                   const y = Number(e.target.value) as YearLevel;
-                  setYearLevel(y);
+                  if (y !== yearLevel) { setYearLevel(y); startNewChat(); }
                   if (y !== 7 && y !== 9) setIsNaplanMode(false);
                 }}
                 className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-300 dark:border-gray-700"
@@ -133,7 +133,7 @@ export default function App() {
             {(profile ? profile.selected_subjects as Subject[] : ALLOWED_SUBJECTS).map(s => (
               <button
                 key={s}
-                onClick={() => { setSubject(s as Subject); if (s === 'Science') setIsNaplanMode(false); }}
+                onClick={() => { if (s !== subject) { setSubject(s as Subject); startNewChat(); } if (s === 'Science') setIsNaplanMode(false); }}
                 className={`flex-shrink-0 px-3 sm:px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                   subject === s
                     ? 'bg-blue-500 text-white shadow-sm'
