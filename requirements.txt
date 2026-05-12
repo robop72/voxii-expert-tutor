@@ -1,0 +1,11 @@
+﻿fastapi
+uvicorn
+langchain-openai
+langchain-chroma
+langchain-community
+langchain
+pydantic
+pypdf
+chromadb
+tiktoken
+pysqlite3-binary

@@ -1,0 +1,6 @@
+venv/
+node_modules/
+.env
+vcaa_json_index/
+build/
+dist/

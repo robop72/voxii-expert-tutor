@@ -1,0 +1,26 @@
+.gcloudignore
+.git
+.gitignore
+
+# Frontend files — not needed in the Docker image
+node_modules/
+src/
+dist/
+public/
+package.json
+package-lock.json
+tailwind.config.js
+postcss.config.js
+tsconfig.json
+vite.config.ts
+index.html
+
+# Python extras not needed at runtime
+venv/
+__pycache__/
+*.pyc
+.env
+boneyard/
+notebook/
+tests/
+figures/

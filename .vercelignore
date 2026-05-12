@@ -1,0 +1,7 @@
+# Ignore backend files for Vercel deployment
+main.py
+requirements.txt
+venv/
+vcaa_json_index/
+.env
+*.py
