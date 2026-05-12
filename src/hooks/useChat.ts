@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { StudentProfile } from '../lib/studentProfile';
 import { v4 as uuidv4 } from 'uuid';
 
 export type Role = 'user' | 'tutor';
@@ -24,7 +25,12 @@ function makeSession(): ChatSession {
   return { id: uuidv4(), title: 'New Chat', messages: [], createdAt: Date.now() };
 }
 
-export function useChat({ yearLevel, subject, isNaplanMode = false }: { yearLevel: number; subject: string; isNaplanMode?: boolean }) {
+export function useChat({ yearLevel, subject, isNaplanMode = false, studentProfile = null }: {
+  yearLevel: number;
+  subject: string;
+  isNaplanMode?: boolean;
+  studentProfile?: StudentProfile | null;
+}) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentId, setCurrentId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -36,11 +42,13 @@ export function useChat({ yearLevel, subject, isNaplanMode = false }: { yearLeve
   const yearLevelRef = useRef(yearLevel);
   const subjectRef = useRef(subject);
   const isNaplanModeRef = useRef(isNaplanMode);
+  const studentProfileRef = useRef(studentProfile);
   const initialised = useRef(false);
 
   useEffect(() => { yearLevelRef.current = yearLevel; }, [yearLevel]);
   useEffect(() => { subjectRef.current = subject; }, [subject]);
   useEffect(() => { isNaplanModeRef.current = isNaplanMode; }, [isNaplanMode]);
+  useEffect(() => { studentProfileRef.current = studentProfile; }, [studentProfile]);
   useEffect(() => { currentIdRef.current = currentId; }, [currentId]);
 
   useEffect(() => {
@@ -129,6 +137,7 @@ export function useChat({ yearLevel, subject, isNaplanMode = false }: { yearLeve
           year_level: `Year ${yearLevelRef.current}`,
           subject: subjectRef.current,
           is_naplan_mode: isNaplanModeRef.current,
+          student_profile: studentProfileRef.current ?? undefined,
         }),
         signal: controller.signal,
       });
