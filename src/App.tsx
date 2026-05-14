@@ -142,6 +142,7 @@ export default function App() {
   }
 
   function handleAddStudent() {
+    if (profiles.length >= 3) return;
     setView('intake');
   }
 
@@ -213,7 +214,7 @@ export default function App() {
         onToggle={() => setSidebarOpen(o => !o)}
         onOpenParentPortal={() => setView('parent-pin')}
         onOpenIntake={() => setView('intake')}
-        onAddStudent={() => setView('intake-new')}
+        onAddStudent={profiles.length < 3 ? () => setView('intake-new') : undefined}
         onSwitchStudent={profiles.length > 1 ? () => setView('profile-picker') : undefined}
         activeStudentName={profile?.student_name || undefined}
         hasProfile={profile !== null}

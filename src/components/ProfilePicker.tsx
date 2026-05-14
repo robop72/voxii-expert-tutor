@@ -193,18 +193,20 @@ export default function ProfilePicker({ profiles, onSelect, onAddStudent, onEdit
             );
           })}
 
-          {/* Add student card */}
-          <button
-            onClick={onAddStudent}
-            className="group flex flex-col items-center gap-3 p-6 rounded-2xl bg-gray-900 border border-dashed border-gray-700 hover:border-blue-500 hover:bg-gray-800 transition-all"
-          >
-            <div className="w-16 h-16 rounded-full bg-gray-800 group-hover:bg-gray-700 flex items-center justify-center transition-colors">
-              <svg className="w-7 h-7 text-gray-400 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            <p className="text-sm font-medium text-gray-400 group-hover:text-blue-400 transition-colors">Add student</p>
-          </button>
+          {/* Add student card — hidden when at 3-profile limit */}
+          {profiles.length < 3 && (
+            <button
+              onClick={onAddStudent}
+              className="group flex flex-col items-center gap-3 p-6 rounded-2xl bg-gray-900 border border-dashed border-gray-700 hover:border-blue-500 hover:bg-gray-800 transition-all"
+            >
+              <div className="w-16 h-16 rounded-full bg-gray-800 group-hover:bg-gray-700 flex items-center justify-center transition-colors">
+                <svg className="w-7 h-7 text-gray-400 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-gray-400 group-hover:text-blue-400 transition-colors">Add student</p>
+            </button>
+          )}
         </div>
       </div>
     </div>
