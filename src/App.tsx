@@ -37,7 +37,7 @@ export default function App() {
 
   const {
     profile, profiles, activeProfileId,
-    setActiveProfile, saveProfile, deleteProfile, clearProfile,
+    setActiveProfile, saveProfile, deleteProfile, clearProfile, restoreProfiles,
   } = useStudentProfile();
 
   const { data: streakData, milestone, recordMessage, dismissMilestone } = useStreak(activeProfileId);
@@ -48,6 +48,21 @@ export default function App() {
       setView('parent-dashboard');
     }
   }, [view]);
+
+  // Restore profiles from Supabase metadata when localStorage is empty (new device / cleared storage)
+  useEffect(() => {
+    if (!session || profiles.length > 0) return;
+    const cloud = session.user.user_metadata?.voxii_profiles as import('./hooks/useStudentProfile').StoredProfile[] | undefined;
+    if (cloud?.length) restoreProfiles(cloud);
+  }, [session?.user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep Supabase metadata in sync whenever profiles change
+  useEffect(() => {
+    if (!session || !supabaseEnabled || profiles.length === 0) return;
+    import('./lib/supabase').then(({ supabase }) => {
+      supabase?.auth.updateUser({ data: { voxii_profiles: profiles } });
+    });
+  }, [profiles, session?.user.id, supabaseEnabled]);
 
   useEffect(() => {
     if (profile) {
