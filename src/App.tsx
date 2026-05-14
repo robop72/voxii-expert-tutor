@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from './lib/supabase';
 import ChatInterface from './components/ChatInterface';
 import Sidebar from './components/Sidebar';
 import ParentPin from './components/ParentPin';
@@ -49,20 +50,21 @@ export default function App() {
     }
   }, [view]);
 
-  // Restore profiles from Supabase metadata when localStorage is empty (new device / cleared storage)
+  // Restore profiles from Supabase when localStorage is empty (new device / cleared storage)
+  // Uses getUser() for fresh server data — session.user.user_metadata can be stale JWT data
   useEffect(() => {
-    if (!session || profiles.length > 0) return;
-    const cloud = session.user.user_metadata?.voxii_profiles as import('./hooks/useStudentProfile').StoredProfile[] | undefined;
-    if (cloud?.length) restoreProfiles(cloud);
+    if (!session || !supabaseEnabled || profiles.length > 0) return;
+    supabase?.auth.getUser().then(({ data }) => {
+      const cloud = data.user?.user_metadata?.voxii_profiles as import('./hooks/useStudentProfile').StoredProfile[] | undefined;
+      if (cloud?.length) restoreProfiles(cloud);
+    });
   }, [session?.user.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep Supabase metadata in sync whenever profiles change
   useEffect(() => {
     if (!session || !supabaseEnabled || profiles.length === 0) return;
-    import('./lib/supabase').then(({ supabase }) => {
-      supabase?.auth.updateUser({ data: { voxii_profiles: profiles } });
-    });
-  }, [profiles, session?.user.id, supabaseEnabled]);
+    supabase?.auth.updateUser({ data: { voxii_profiles: profiles } });
+  }, [profiles, session?.user.id, supabaseEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (profile) {
