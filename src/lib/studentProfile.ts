@@ -2,6 +2,25 @@ export type SubjectLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 export type GuidancePreference = 'Socratic' | 'Mixed' | 'Full Explanations';
 export type EngagementTone = 'Warm' | 'Balanced' | 'Formal';
 
+const CURRICULUM_MAP: Record<string, { authority: string; fullName: string }> = {
+  VIC: { authority: 'VCAA', fullName: 'Victorian Curriculum 2.0' },
+  NSW: { authority: 'NESA', fullName: 'NSW Curriculum (NESA)' },
+  QLD: { authority: 'QCAA', fullName: 'Australian Curriculum v9.0' },
+  WA:  { authority: 'SCSA', fullName: 'Western Australian Curriculum' },
+  SA:  { authority: 'SACE Board', fullName: 'South Australian Curriculum' },
+  ACT: { authority: 'ACARA', fullName: 'Australian Curriculum v9.0 (ACT)' },
+  TAS: { authority: 'TASC', fullName: 'Australian Curriculum v9.0 (Tasmania)' },
+  NT:  { authority: 'NTBOS', fullName: 'Australian Curriculum v9.0 (NT)' },
+};
+
+export function getCurriculumAuthority(stateCode: string): string {
+  return CURRICULUM_MAP[stateCode]?.authority ?? stateCode;
+}
+
+export function getCurriculumFullName(stateCode: string): string {
+  return CURRICULUM_MAP[stateCode]?.fullName ?? `Australian Curriculum (${stateCode})`;
+}
+
 export interface SubjectPerformance {
   grade: string;
   struggles_significantly: boolean;
@@ -11,6 +30,7 @@ export interface SubjectPerformance {
 }
 
 export interface StudentProfile {
+  id?: string;
   student_name: string;
   year_level: number;
   state_curriculum: string;
@@ -20,6 +40,9 @@ export interface StudentProfile {
   guidance_preference: GuidancePreference;
   engagement_tone: EngagementTone;
   focus_limit_minutes: number;
+  tts_enabled: boolean;
+  avatar?: string;
+  student_pin?: string;
 }
 
 export interface IntakeQuestionnaire {
@@ -32,6 +55,7 @@ export interface IntakeQuestionnaire {
   guidance_preference: GuidancePreference;
   engagement_tone: EngagementTone;
   focus_limit_minutes: number;
+  tts_enabled: boolean;
 }
 
 // Client-side classification mirrors intake_classifier.py
@@ -63,5 +87,6 @@ export function deriveProfileClientSide(q: IntakeQuestionnaire): StudentProfile 
     guidance_preference: q.guidance_preference,
     engagement_tone: q.engagement_tone,
     focus_limit_minutes: q.focus_limit_minutes,
+    tts_enabled: q.tts_enabled,
   };
 }
