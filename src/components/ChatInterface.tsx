@@ -1,5 +1,20 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { Mic, Send } from 'lucide-react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { Mic, MicOff, Send, Square, Volume2 } from 'lucide-react';
+
+
+function stripForTTS(text: string): string {
+  return text
+    .replace(/\[Graph:[^\]]*\]/gi, 'a graph')
+    .replace(/\[Diagram:[^\]]*\]/gi, 'a diagram')
+    .replace(/\[Image of [^\]]*\]/gi, 'an image')
+    .replace(/\$\$[\s\S]+?\$\$/g, 'a mathematical formula')
+    .replace(/\$[^$\n]+\$/g, 'a formula')
+    .replace(/```[\s\S]+?```/g, 'a code example')
+    .replace(/[*_#`]/g, '')
+    .replace(/\n+/g, '. ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 import ExpertMessage from './ExpertMessage';
 import StarterCards from './StarterCards';
 import { Message } from '../hooks/useChat';
@@ -14,6 +29,9 @@ interface Props {
   sendMessage: (text: string) => void;
   cancelMessage: () => void;
   studentName?: string;
+  ttsEnabled?: boolean;
+  apiSessionId?: string;
+  accessToken?: string;
 }
 
 const THINKING_PHRASES = [
@@ -64,10 +82,19 @@ function ThinkingBubble() {
 export default function ChatInterface({
   yearLevel, subject, isNaplanMode = false,
   messages, isLoading, sendMessage, cancelMessage, studentName,
+  ttsEnabled = true, apiSessionId, accessToken,
 }: Props) {
   const [input, setInput] = useState('');
+  const [isReading, setIsReading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [interimText, setInterimText] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(false);
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -84,8 +111,107 @@ export default function ChatInterface({
     const text = input.trim();
     if (!text || isLoading) return;
     setInput('');
+    setInterimText('');
     sendMessage(text);
   }
+
+  const handleReadAloud = useCallback(async () => {
+    if (isReading) {
+      audioRef.current?.pause();
+      audioRef.current = null;
+      setIsReading(false);
+      return;
+    }
+    const tutorMsgs = messagesRef.current.filter(m => m.role === 'tutor');
+    const lastTutor = tutorMsgs[tutorMsgs.length - 1];
+    if (!lastTutor) return;
+    const cleanText = stripForTTS(lastTutor.text).slice(0, 4000);
+    setIsReading(true);
+    try {
+      const ttsHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (accessToken) ttsHeaders['Authorization'] = `Bearer ${accessToken}`;
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: ttsHeaders,
+        body: JSON.stringify({ text: cleanText, session_id: apiSessionId }),
+      });
+      if (!res.ok) throw new Error('TTS failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => { setIsReading(false); URL.revokeObjectURL(url); };
+      audio.onerror = () => { setIsReading(false); URL.revokeObjectURL(url); };
+      audio.play();
+    } catch {
+      setIsReading(false);
+    }
+  }, [isReading, accessToken, apiSessionId]);
+
+  const startRecognition = useCallback(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    const rec = new SR();
+    rec.lang = 'en-AU';
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    recognitionRef.current = rec;
+
+    rec.onresult = (e: any) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const result = e.results[i];
+        if (result.isFinal) {
+          const phrase = result[0].transcript.trim();
+          if (phrase) setInput(prev => prev ? `${prev} ${phrase}` : phrase);
+        } else {
+          interim += result[0].transcript;
+        }
+      }
+      setInterimText(interim);
+    };
+
+    rec.onerror = (e: any) => {
+      // 'no-speech' is normal — auto-restart; other errors stop listening
+      if (e.error !== 'no-speech') {
+        isListeningRef.current = false;
+        setIsListening(false);
+        setInterimText('');
+      }
+    };
+
+    // Auto-restart when browser times out (Chrome stops after ~60s silence)
+    rec.onend = () => {
+      setInterimText('');
+      if (isListeningRef.current) {
+        try { rec.start(); } catch {}
+      } else {
+        setIsListening(false);
+      }
+    };
+
+    rec.start();
+  }, []);
+
+  const handleMic = useCallback(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    if (isListening) {
+      isListeningRef.current = false;
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      setInterimText('');
+      return;
+    }
+    isListeningRef.current = true;
+    setIsListening(true);
+    startRecognition();
+  }, [isListening, startRecognition]);
+
+  const hasMicSupport = typeof window !== 'undefined' &&
+    ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  const hasLastTutorMsg = messages.some(m => m.role === 'tutor');
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -96,30 +222,53 @@ export default function ChatInterface({
 
   const inputBar = (
     <div className="flex items-end gap-2 bg-gray-100/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 rounded-3xl px-4 py-3 focus-within:border-gray-400 dark:focus-within:border-gray-600 transition-colors">
-      <button className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-        </svg>
-        Read Aloud
-      </button>
+      {ttsEnabled && (
+        <button
+          onClick={handleReadAloud}
+          disabled={!hasLastTutorMsg}
+          title={isReading ? 'Stop reading' : 'Read last response aloud'}
+          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+            isReading
+              ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+              : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+          }`}
+        >
+          {isReading ? <Square size={12} /> : <Volume2 size={12} />}
+          {isReading ? 'Stop' : 'Read Aloud'}
+        </button>
+      )}
 
-      <textarea
-        ref={textareaRef}
-        rows={1}
-        value={input}
-        onChange={e => setInput(e.target.value)}
-        onKeyDown={handleKey}
-        placeholder={`Ask Voxii a ${subject} question…`}
-        className="flex-1 bg-transparent outline-none resize-none text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 scrollbar-none"
-        style={{ scrollbarWidth: 'none', overflowY: 'auto' }}
-        disabled={isLoading}
-      />
+      <div className="flex-1 min-w-0">
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKey}
+          placeholder={isListening && !input ? 'Listening…' : `Ask Voxii a ${subject} question…`}
+          className="w-full bg-transparent outline-none resize-none text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 scrollbar-none"
+          style={{ scrollbarWidth: 'none', overflowY: 'auto' }}
+          disabled={isLoading}
+        />
+        {interimText && (
+          <p className="text-sm text-gray-400 dark:text-gray-500 italic truncate mt-0.5">{interimText}</p>
+        )}
+      </div>
 
       <div className="flex items-center gap-2 flex-shrink-0">
-        <button className="p-1.5 text-gray-500 hover:text-gray-300 transition-colors" title="Voice input">
-          <Mic size={18} />
-        </button>
+        {hasMicSupport && (
+          <button
+            onClick={handleMic}
+            title={isListening ? 'Stop listening' : 'Speak your question'}
+            className={`p-1.5 transition-colors rounded-full ${
+              isListening
+                ? 'text-red-500 animate-pulse'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+          </button>
+        )}
         <button
           onClick={isLoading ? cancelMessage : handleSend}
           disabled={!isLoading && !input.trim()}

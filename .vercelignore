@@ -5,3 +5,15 @@ venv/
 vcaa_json_index/
 .env
 *.py
+pyproject.toml
+poetry.lock
+poetry.toml
+conda-environment.yml
+Dockerfile
+Dockerfile.streamlit
+Makefile
+*.rdf
+data/
+figures/
+notebook/
+boneyard/
