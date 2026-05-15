@@ -8,10 +8,17 @@ import json
 import hashlib
 import datetime
 import asyncio
+import logging
 from collections import OrderedDict
 from dotenv import load_dotenv
 
 load_dotenv()  # loads .env for local dev; Cloud Run injects env vars directly
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    stream=sys.stdout,
+)
 
 from fastapi import FastAPI, HTTPException, Request, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -549,3 +556,44 @@ async def get_knowledge_graph(
     student_id = f"{sub}__{profile_id}" if profile_id else sub
     concepts = await knowledge_graph.get_all_concepts(student_id)
     return {"concepts": concepts}
+
+
+@app.get("/debug-kg")
+async def debug_kg(auth: dict = Depends(verify_auth)):
+    """Temporary debug endpoint — tests Supabase write directly."""
+    import httpx
+    sub = auth.get("sub", "dev")
+    svc_key = os.environ.get("SUPABASE_SERVICE_KEY", "")
+    supabase_url = os.environ.get("SUPABASE_URL", "https://kizrtirljclpqjifrlwh.supabase.co")
+
+    if not svc_key:
+        return {"error": "SUPABASE_SERVICE_KEY not set", "sub": sub}
+
+    headers = {
+        "apikey": svc_key,
+        "Authorization": f"Bearer {svc_key}",
+        "Content-Type": "application/json",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{supabase_url}/rest/v1/rpc/update_mastery",
+                headers=headers,
+                json={
+                    "p_student_id": f"debug__{sub[:8]}",
+                    "p_concept_key": "debug_test",
+                    "p_concept_label": "Debug Test",
+                    "p_subject": "Mathematics",
+                    "p_year_level": 9,
+                    "p_signal": "progressing",
+                },
+            )
+        return {
+            "status": resp.status_code,
+            "body": resp.text,
+            "sub": sub[:8],
+            "key_set": bool(svc_key),
+            "key_prefix": svc_key[:10] + "...",
+        }
+    except Exception as exc:
+        return {"error": str(exc), "sub": sub[:8]}

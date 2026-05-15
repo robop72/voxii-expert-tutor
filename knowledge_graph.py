@@ -50,13 +50,15 @@ async def extract_and_update(
     llm,
 ) -> None:
     """Fire-and-forget: extract concepts from the exchange and upsert mastery scores."""
+    print(f"[KG] called: student_id={student_id!r} key_set={bool(SUPABASE_SERVICE_KEY)}", flush=True)
     if not SUPABASE_SERVICE_KEY or student_id in ("dev", ""):
+        print(f"[KG] SKIP: key_set={bool(SUPABASE_SERVICE_KEY)} student_id={student_id!r}", flush=True)
         return
 
     try:
         from langchain_core.messages import HumanMessage
 
-        logger.info(f"[knowledge_graph] starting extraction for student={student_id} subject={subject} year={year_level}")
+        print(f"[KG] extracting: student={student_id} subject={subject} year={year_level}", flush=True)
 
         prompt = _EXTRACT_PROMPT.format(
             subject=subject,
@@ -66,17 +68,17 @@ async def extract_and_update(
         )
         result = await asyncio.to_thread(llm.invoke, [HumanMessage(content=prompt)])
         raw = result.content.strip()
-        logger.info(f"[knowledge_graph] LLM raw response: {raw[:200]}")
+        print(f"[KG] LLM raw: {raw[:200]}", flush=True)
 
         if raw.startswith("```"):
             parts = raw.split("```")
             raw = parts[1].lstrip("json").strip() if len(parts) > 1 else raw
 
         concepts = json.loads(raw)
-        logger.info(f"[knowledge_graph] parsed {len(concepts) if isinstance(concepts, list) else 'non-list'} concepts: {concepts}")
+        print(f"[KG] parsed {len(concepts) if isinstance(concepts, list) else 'non-list'} concepts: {concepts}", flush=True)
 
         if not isinstance(concepts, list) or not concepts:
-            logger.info("[knowledge_graph] no concepts to write, returning")
+            print("[KG] no concepts to write, returning", flush=True)
             return
 
         year_int = int("".join(filter(str.isdigit, year_level))) if year_level else 0
@@ -88,7 +90,7 @@ async def extract_and_update(
                 signal = concept.get("signal", "progressing")
 
                 if not key or not label or signal not in ("mastered", "progressing", "struggling"):
-                    logger.warning(f"[knowledge_graph] skipping invalid concept: key={key!r} label={label!r} signal={signal!r}")
+                    print(f"[KG] skipping invalid concept: key={key!r} label={label!r} signal={signal!r}", flush=True)
                     continue
 
                 payload = {
@@ -99,17 +101,17 @@ async def extract_and_update(
                     "p_year_level": year_int,
                     "p_signal": signal,
                 }
-                logger.info(f"[knowledge_graph] calling update_mastery: {payload}")
+                print(f"[KG] calling update_mastery: {payload}", flush=True)
                 resp = await client.post(
                     f"{SUPABASE_URL}/rest/v1/rpc/update_mastery",
                     headers=_headers(),
                     json=payload,
                 )
-                logger.info(f"[knowledge_graph] update_mastery response: status={resp.status_code} body={resp.text[:200]}")
+                print(f"[KG] update_mastery response: status={resp.status_code} body={resp.text[:200]}", flush=True)
 
-        logger.info(f"[knowledge_graph] extraction complete for student={student_id}")
+        print(f"[KG] done: student={student_id}", flush=True)
     except Exception as exc:
-        logger.warning(f"[knowledge_graph] extract_and_update failed: {exc}\n{traceback.format_exc()}")
+        print(f"[KG] EXCEPTION: {exc}\n{traceback.format_exc()}", flush=True)
 
 
 async def get_mastery_context(
