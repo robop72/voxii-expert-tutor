@@ -1,0 +1,51 @@
+name: Deploy Backend to Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - main.py
+      - knowledge_graph.py
+      - build_prompt.py
+      - personalized_prompt.py
+      - intake_classifier.py
+      - curriculum_authorities.py
+      - requirements.txt
+      - Dockerfile
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate with GCP
+        run: |
+          echo "${{ secrets.GCP_SA_KEY }}" | base64 -d > /tmp/sa-key.json
+          gcloud auth activate-service-account --key-file=/tmp/sa-key.json
+          gcloud config set project voxii-backend-2026
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker australia-southeast1-docker.pkg.dev --quiet
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t australia-southeast1-docker.pkg.dev/voxii-backend-2026/cloud-run-source-deploy/voxii-tutor-backend:latest \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push \
+            australia-southeast1-docker.pkg.dev/voxii-backend-2026/cloud-run-source-deploy/voxii-tutor-backend:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy voxii-tutor-backend \
+            --image australia-southeast1-docker.pkg.dev/voxii-backend-2026/cloud-run-source-deploy/voxii-tutor-backend:latest \
+            --region australia-southeast1 \
+            --project voxii-backend-2026 \
+            --service-account voxii-cloudrun@voxii-backend-2026.iam.gserviceaccount.com \
+            --min-instances 1 \
+            --quiet
