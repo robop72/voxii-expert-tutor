@@ -17,3 +17,4 @@ redis
 python-jose[cryptography]
 requests
 httpx
+sympy

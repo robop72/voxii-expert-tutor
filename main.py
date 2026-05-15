@@ -31,11 +31,15 @@ from google.cloud import texttospeech
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_chroma import Chroma
 from langchain_community.chat_message_histories import ChatMessageHistory, RedisChatMessageHistory
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage as _LCHuman, AIMessage as _LCAi
 from build_prompt import build_system_prompt
 from intake_classifier import derive_profile_from_questionnaire
 from personalized_prompt import generate_personalized_prompt
 from curriculum_authorities import get_db_state, get_info as get_curriculum_info
 import knowledge_graph
+import math_solver
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -507,16 +511,40 @@ async def chat(request: Request, body: ChatRequest, background_tasks: Background
     if context_text:
         system_prompt += f"\n\nEXPERT CURRICULUM GUIDE ({curriculum_label} content for this session):\n{context_text}"
 
-    messages_payload = [{"role": "system", "content": system_prompt}]
-    for msg in history.messages:
-        messages_payload.append({
-            "role": "assistant" if msg.type == "ai" else "user",
-            "content": msg.content,
-        })
-    messages_payload.append({"role": "user", "content": body.message})
-
-    result = llm.invoke(messages_payload)
-    response = result.content
+    if clean_sub == "Mathematics":
+        # ── SymPy agent: verify all calculations before responding ────────────
+        agent_prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            MessagesPlaceholder("chat_history"),
+            ("human", "{input}"),
+            MessagesPlaceholder("agent_scratchpad"),
+        ])
+        agent = create_tool_calling_agent(llm, math_solver.MATH_TOOLS, agent_prompt)
+        executor = AgentExecutor(
+            agent=agent,
+            tools=math_solver.MATH_TOOLS,
+            max_iterations=5,
+            handle_parsing_errors=True,
+        )
+        chat_history = [
+            _LCAi(content=m.content) if m.type == "ai" else _LCHuman(content=m.content)
+            for m in history.messages
+        ]
+        agent_result = await asyncio.to_thread(
+            executor.invoke,
+            {"input": body.message, "chat_history": chat_history},
+        )
+        response = agent_result["output"]
+    else:
+        messages_payload = [{"role": "system", "content": system_prompt}]
+        for msg in history.messages:
+            messages_payload.append({
+                "role": "assistant" if msg.type == "ai" else "user",
+                "content": msg.content,
+            })
+        messages_payload.append({"role": "user", "content": body.message})
+        result = llm.invoke(messages_payload)
+        response = result.content
 
     # ── Output moderation ──────────────────────────────────────────────────────
     try:

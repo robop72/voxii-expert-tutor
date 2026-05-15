@@ -20,6 +20,7 @@ COPY intake_classifier.py .
 COPY personalized_prompt.py .
 COPY curriculum_authorities.py .
 COPY knowledge_graph.py .
+COPY math_solver.py .
 
 # Reuse the vector database from the existing image — keeps it out of git
 COPY --from=db /app/vcaa_json_index ./vcaa_json_index/
