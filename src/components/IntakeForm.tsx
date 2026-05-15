@@ -542,8 +542,9 @@ const TOTAL_STEPS = 5;
 export default function IntakeForm({ onComplete, onBack, onClear, initialProfile }: Props) {
   const isEditing = !!initialProfile;
   const hasPin = !!localStorage.getItem('voxii-parent-pin');
-  // Skip consent step only if editing AND pin already exists
-  const [step, setStep] = useState<number>(isEditing && hasPin ? 1 : 0);
+  // Skip consent if parent already set a PIN (consent already given for this account)
+  const firstStep = hasPin ? 1 : 0;
+  const [step, setStep] = useState<number>(firstStep);
 
   // Consent fields (Step 0 only, not persisted to profile)
   const [parentName, setParentName] = useState('');
@@ -606,7 +607,6 @@ export default function IntakeForm({ onComplete, onBack, onClear, initialProfile
   }
 
   function handleBack() {
-    const firstStep = isEditing && hasPin ? 1 : 0;
     if (step === firstStep) {
       onBack();
     } else {
@@ -649,9 +649,10 @@ export default function IntakeForm({ onComplete, onBack, onClear, initialProfile
   async function handleSaveNow() { await saveProfile(true); }
 
   const isLastStep = step === 4;
-  const isFirstStep = step === (isEditing && hasPin ? 1 : 0);
-  // Progress from 0% (step 0) to 100% (step 4)
-  const progress = (step / (TOTAL_STEPS - 1)) * 100;
+  const isFirstStep = step === firstStep;
+  const totalDisplaySteps = TOTAL_STEPS - firstStep;
+  const displayStep = step - firstStep + 1;
+  const progress = ((step - firstStep) / (TOTAL_STEPS - 1 - firstStep)) * 100;
 
   return (
     <div className="h-[100dvh] bg-gray-50 dark:bg-gray-950 flex flex-col">
@@ -676,7 +677,7 @@ export default function IntakeForm({ onComplete, onBack, onClear, initialProfile
       <div className="flex-shrink-0 px-4 pb-3 max-w-lg w-full mx-auto">
         <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1.5">
           <span className="font-medium text-gray-700 dark:text-gray-300">{STEP_TITLES[step]}</span>
-          <span>Step {step + 1} of {TOTAL_STEPS}</span>
+          <span>Step {displayStep} of {totalDisplaySteps}</span>
         </div>
         <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <div
