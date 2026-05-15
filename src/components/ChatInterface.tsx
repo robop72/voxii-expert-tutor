@@ -116,9 +116,12 @@ export default function ChatInterface({
     sendMessage(text);
   }
 
-  const handleReadAloud = useCallback(() => {
+  const handleReadAloud = useCallback(async () => {
     if (isReading) {
-      window.speechSynthesis.cancel();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
       setIsReading(false);
       return;
     }
@@ -127,25 +130,23 @@ export default function ChatInterface({
     if (!lastTutor) return;
     const cleanText = stripForTTS(lastTutor.text).slice(0, 4000);
 
-    const speak = () => {
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      // Prefer Australian English voice
-      const voices = window.speechSynthesis.getVoices();
-      const auVoice = voices.find(v => v.lang === 'en-AU') ?? voices.find(v => v.lang.startsWith('en'));
-      if (auVoice) utterance.voice = auVoice;
-      utterance.lang = 'en-AU';
-      utterance.rate = 0.95;
-      utterance.onend = () => setIsReading(false);
-      utterance.onerror = () => setIsReading(false);
-      setIsReading(true);
-      window.speechSynthesis.speak(utterance);
-    };
-
-    // Voices may not be loaded yet on first call
-    if (window.speechSynthesis.getVoices().length > 0) {
-      speak();
-    } else {
-      window.speechSynthesis.onvoiceschanged = () => { speak(); };
+    setIsReading(true);
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: cleanText }),
+      });
+      if (!res.ok) throw new Error('TTS failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => { setIsReading(false); URL.revokeObjectURL(url); audioRef.current = null; };
+      audio.onerror = () => { setIsReading(false); URL.revokeObjectURL(url); audioRef.current = null; };
+      audio.play();
+    } catch {
+      setIsReading(false);
     }
   }, [isReading]);
 
