@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 load_dotenv()  # loads .env for local dev; Cloud Run injects env vars directly
 
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -388,7 +388,7 @@ async def summarise_session(request: Request, body: SummariseRequest, _=Depends(
 
 @app.post("/chat")
 @limiter.limit("20/minute")
-async def chat(request: Request, body: ChatRequest, auth: dict = Depends(verify_auth)):
+async def chat(request: Request, body: ChatRequest, background_tasks: BackgroundTasks, auth: dict = Depends(verify_auth)):
     # ── Server-side safety gate (authoritative — cannot be bypassed by clients) ──
     if _SERIOUS_RE.search(body.message):
         return {"response": _SERIOUS_RESPONSE}
@@ -529,10 +529,11 @@ async def chat(request: Request, body: ChatRequest, auth: dict = Depends(verify_
     history.add_user_message(body.message)
     history.add_ai_message(response)
 
-    asyncio.create_task(knowledge_graph.extract_and_update(
+    background_tasks.add_task(
+        knowledge_graph.extract_and_update,
         student_id, clean_sub, clean_year,
         body.message, response, llm_query_gen,
-    ))
+    )
 
     return {"response": response}
 
