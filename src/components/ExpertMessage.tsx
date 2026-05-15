@@ -2,6 +2,7 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
 import GraphWidget from '../widgets/GraphWidget';
 import DiagramWidget from '../widgets/DiagramWidget';
@@ -42,6 +43,18 @@ function buildParts(text: string): Part[] {
     parts.push({ type: 'text', content: text.slice(lastIndex) });
   }
   return parts;
+}
+
+function processHighlights(text: string): string {
+  return text.replace(/==([^=\n]+)==/g, '<mark>$1</mark>');
+}
+
+function HighlightMark({ children }: { children?: React.ReactNode }) {
+  return (
+    <mark className="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 px-0.5 rounded font-medium not-italic" style={{ background: 'inherit' }}>
+      {children}
+    </mark>
+  );
 }
 
 function WidgetInterceptor({ className, children }: { className?: string; children?: React.ReactNode }) {
@@ -94,10 +107,10 @@ export default function ExpertMessage({ text }: Props) {
           <div key={i} className="prose dark:prose-invert prose-sm max-w-none">
             <ReactMarkdown
               remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{ code: WidgetInterceptor }}
+              rehypePlugins={[rehypeKatex, rehypeRaw]}
+              components={{ code: WidgetInterceptor, mark: HighlightMark }}
             >
-              {part.content}
+              {processHighlights(part.content)}
             </ReactMarkdown>
           </div>
         );
