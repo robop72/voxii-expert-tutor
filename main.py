@@ -112,7 +112,7 @@ _openai_client = OpenAIClient()
 # Uses Redis when REDIS_URL is set (production / staging), falls back to an
 # in-memory LRU-capped OrderedDict for local dev without Redis configured.
 MAX_SESSIONS = 500
-MAX_TURNS = 5
+MAX_TURNS = int(os.environ.get("MAX_TURNS", "30"))
 SESSION_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days, matches frontend localStorage TTL
 
 _REDIS_URL = os.environ.get("REDIS_URL", "")
