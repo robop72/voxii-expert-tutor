@@ -1,8 +1,9 @@
 """
 SymPy-backed tools for 100% accurate maths computation.
-Used by the Mathematics agent to verify calculations before explaining them.
+Exposes plain Python functions + OpenAI tool schemas for direct function calling.
 """
 
+import json
 import sympy
 from sympy.parsing.sympy_parser import (
     parse_expr,
@@ -10,7 +11,6 @@ from sympy.parsing.sympy_parser import (
     implicit_multiplication_application,
 )
 from sympy import symbols, solve, simplify, factor, expand, diff, integrate
-from langchain_core.tools import tool
 
 _TRANSFORMS = standard_transformations + (implicit_multiplication_application,)
 
@@ -19,11 +19,7 @@ def _parse(s: str):
     return parse_expr(s.strip(), transformations=_TRANSFORMS)
 
 
-@tool
 def solve_equation(equation: str, variable: str = "x") -> str:
-    """Solve an algebraic equation exactly. Use for any 'solve for x' or 'find the value' problem.
-    Write the equation using * for multiplication (e.g. '2*x + 3 = 7').
-    For quadratics or polynomials, all solutions are returned."""
     try:
         var = symbols(variable)
         if "=" in equation:
@@ -36,37 +32,27 @@ def solve_equation(equation: str, variable: str = "x") -> str:
             return "No real solutions."
         return f"Exact solution(s): {variable} = {', '.join(str(s) for s in solutions)}"
     except Exception as exc:
-        return f"SymPy could not solve this: {exc}"
+        return f"SymPy error: {exc}"
 
 
-@tool
 def simplify_or_expand(expression: str, mode: str = "simplify") -> str:
-    """Simplify or expand an algebraic expression exactly.
-    mode: 'simplify' (default) or 'expand'
-    Examples: expression='(x+2)**2' mode='expand' → x**2 + 4*x + 4"""
     try:
         expr = _parse(expression)
         result = expand(expr) if mode == "expand" else simplify(expr)
         return f"Result: {result}"
     except Exception as exc:
-        return f"SymPy could not process this: {exc}"
+        return f"SymPy error: {exc}"
 
 
-@tool
 def factor_polynomial(expression: str) -> str:
-    """Factor a polynomial expression exactly.
-    Example: 'x**2 - 5*x + 6' → (x - 2)*(x - 3)"""
     try:
         result = factor(_parse(expression))
         return f"Factored form: {result}"
     except Exception as exc:
-        return f"SymPy could not factor this: {exc}"
+        return f"SymPy error: {exc}"
 
 
-@tool
 def calculate(expression: str) -> str:
-    """Evaluate a numerical expression exactly — handles fractions, surds, powers, square roots.
-    Examples: 'sqrt(144)', '3/7 + 2/5', '2**10', 'sqrt(2) * sqrt(8)'"""
     try:
         result = sympy.nsimplify(_parse(expression))
         if result.is_number:
@@ -76,36 +62,127 @@ def calculate(expression: str) -> str:
             return f"Exact: {result}  ≈  {decimal:.6g}"
         return f"= {result}"
     except Exception as exc:
-        return f"SymPy could not calculate this: {exc}"
+        return f"SymPy error: {exc}"
 
 
-@tool
 def differentiate(expression: str, variable: str = "x") -> str:
-    """Find the derivative of an expression with respect to a variable.
-    Example: expression='x**3 + 2*x', variable='x' → 3*x**2 + 2"""
     try:
         result = diff(_parse(expression), symbols(variable))
         return f"d/d{variable}({expression}) = {result}"
     except Exception as exc:
-        return f"SymPy could not differentiate this: {exc}"
+        return f"SymPy error: {exc}"
 
 
-@tool
 def integrate_expression(expression: str, variable: str = "x") -> str:
-    """Find the indefinite integral of an expression.
-    Example: expression='3*x**2', variable='x' → x**3"""
     try:
         result = integrate(_parse(expression), symbols(variable))
         return f"∫({expression}) d{variable} = {result} + C"
     except Exception as exc:
-        return f"SymPy could not integrate this: {exc}"
+        return f"SymPy error: {exc}"
 
 
-MATH_TOOLS = [
-    solve_equation,
-    simplify_or_expand,
-    factor_polynomial,
-    calculate,
-    differentiate,
-    integrate_expression,
+def call_tool(name: str, args: dict) -> str:
+    """Dispatch a tool call by name."""
+    dispatch = {
+        "solve_equation":      lambda: solve_equation(args["equation"], args.get("variable", "x")),
+        "simplify_or_expand":  lambda: simplify_or_expand(args["expression"], args.get("mode", "simplify")),
+        "factor_polynomial":   lambda: factor_polynomial(args["expression"]),
+        "calculate":           lambda: calculate(args["expression"]),
+        "differentiate":       lambda: differentiate(args["expression"], args.get("variable", "x")),
+        "integrate_expression": lambda: integrate_expression(args["expression"], args.get("variable", "x")),
+    }
+    fn = dispatch.get(name)
+    return fn() if fn else f"Unknown tool: {name}"
+
+
+# OpenAI function schemas
+OPENAI_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "solve_equation",
+            "description": "Solve an algebraic equation exactly. Use for any equation or 'solve for x' problem.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "equation": {"type": "string", "description": "Equation string e.g. '3*x - 7 = 14'"},
+                    "variable": {"type": "string", "description": "Variable to solve for (default 'x')"},
+                },
+                "required": ["equation"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "simplify_or_expand",
+            "description": "Simplify or expand an algebraic expression exactly.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string", "description": "Expression e.g. '(x+2)**2'"},
+                    "mode": {"type": "string", "enum": ["simplify", "expand"], "description": "simplify or expand"},
+                },
+                "required": ["expression"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "factor_polynomial",
+            "description": "Factor a polynomial expression exactly.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string", "description": "Polynomial e.g. 'x**2 - 5*x + 6'"},
+                },
+                "required": ["expression"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "calculate",
+            "description": "Evaluate a numerical expression exactly — fractions, surds, powers, roots.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string", "description": "Expression e.g. 'sqrt(144)' or '3/7 + 2/5'"},
+                },
+                "required": ["expression"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "differentiate",
+            "description": "Find the derivative of an expression.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string", "description": "Expression e.g. 'x**3 + 2*x'"},
+                    "variable": {"type": "string", "description": "Variable (default 'x')"},
+                },
+                "required": ["expression"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "integrate_expression",
+            "description": "Find the indefinite integral of an expression.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string", "description": "Expression e.g. '3*x**2'"},
+                    "variable": {"type": "string", "description": "Variable (default 'x')"},
+                },
+                "required": ["expression"],
+            },
+        },
+    },
 ]

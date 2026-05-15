@@ -31,8 +31,6 @@ from google.cloud import texttospeech
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_chroma import Chroma
 from langchain_community.chat_message_histories import ChatMessageHistory, RedisChatMessageHistory
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage as _LCHuman, AIMessage as _LCAi
 from build_prompt import build_system_prompt
 from intake_classifier import derive_profile_from_questionnaire
 from personalized_prompt import generate_personalized_prompt
@@ -40,11 +38,11 @@ from curriculum_authorities import get_db_state, get_info as get_curriculum_info
 import knowledge_graph
 
 try:
-    from langchain.agents import create_tool_calling_agent, AgentExecutor
     import math_solver
     _SYMPY_AVAILABLE = True
+    print("[startup] SymPy math solver loaded OK", flush=True)
 except Exception as _e:
-    print(f"[startup] SymPy/agent unavailable, maths will use direct LLM: {_e}", flush=True)
+    print(f"[startup] SymPy unavailable, maths will use direct LLM: {_e}", flush=True)
     _SYMPY_AVAILABLE = False
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -517,59 +515,52 @@ async def chat(request: Request, body: ChatRequest, background_tasks: Background
     if context_text:
         system_prompt += f"\n\nEXPERT CURRICULUM GUIDE ({curriculum_label} content for this session):\n{context_text}"
 
+    messages_payload = [{"role": "system", "content": system_prompt}]
+    for msg in history.messages:
+        messages_payload.append({
+            "role": "assistant" if msg.type == "ai" else "user",
+            "content": msg.content,
+        })
+    messages_payload.append({"role": "user", "content": body.message})
+
     if clean_sub == "Mathematics" and _SYMPY_AVAILABLE:
-        # ── SymPy agent: verify all calculations before responding ────────────
+        # ── Direct OpenAI function calling with SymPy tools ───────────────────
         try:
-            print("[chat] using SymPy agent for Mathematics", flush=True)
-            sympy_instruction = (
-                "\n\n---\nCOMPUTATION RULE: You have access to exact mathematical tools. "
-                "You MUST call a tool for any calculation, equation solving, factoring, "
-                "simplification, or arithmetic — never compute from memory. "
-                "Use solve_equation for equations, factor_polynomial for factoring, "
-                "calculate for arithmetic/surds, simplify_or_expand for algebraic expressions, "
-                "differentiate for derivatives. Always verify with a tool first, then explain."
+            print("[chat] using SymPy function calling for Mathematics", flush=True)
+            import json as _json
+            fc_response = await asyncio.to_thread(
+                _openai_client.chat.completions.create,
+                model="gpt-4o-mini",
+                messages=messages_payload,
+                tools=math_solver.OPENAI_TOOLS,
+                tool_choice="auto",
             )
-            agent_prompt = ChatPromptTemplate.from_messages([
-                ("system", system_prompt + sympy_instruction),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-                MessagesPlaceholder("agent_scratchpad"),
-            ])
-            agent = create_tool_calling_agent(llm, math_solver.MATH_TOOLS, agent_prompt)
-            executor = AgentExecutor(
-                agent=agent,
-                tools=math_solver.MATH_TOOLS,
-                max_iterations=5,
-                handle_parsing_errors=True,
-            )
-            chat_history = [
-                _LCAi(content=m.content) if m.type == "ai" else _LCHuman(content=m.content)
-                for m in history.messages
-            ]
-            agent_result = await asyncio.to_thread(
-                executor.invoke,
-                {"input": body.message, "chat_history": chat_history},
-            )
-            response = agent_result["output"]
-        except Exception as _agent_exc:
-            print(f"[chat] SymPy agent failed, falling back to direct LLM: {_agent_exc}", flush=True)
-            messages_payload = [{"role": "system", "content": system_prompt}]
-            for msg in history.messages:
-                messages_payload.append({
-                    "role": "assistant" if msg.type == "ai" else "user",
-                    "content": msg.content,
-                })
-            messages_payload.append({"role": "user", "content": body.message})
+            msg_out = fc_response.choices[0].message
+            if msg_out.tool_calls:
+                # Execute each tool call with SymPy and feed results back
+                messages_payload.append(msg_out)
+                for tc in msg_out.tool_calls:
+                    args = _json.loads(tc.function.arguments)
+                    result_str = math_solver.call_tool(tc.function.name, args)
+                    print(f"[chat] SymPy {tc.function.name}({args}) → {result_str}", flush=True)
+                    messages_payload.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": result_str,
+                    })
+                final = await asyncio.to_thread(
+                    _openai_client.chat.completions.create,
+                    model="gpt-4o-mini",
+                    messages=messages_payload,
+                )
+                response = final.choices[0].message.content
+            else:
+                response = msg_out.content
+        except Exception as _sympy_exc:
+            print(f"[chat] SymPy function calling failed, using direct LLM: {_sympy_exc}", flush=True)
             result = llm.invoke(messages_payload)
             response = result.content
     else:
-        messages_payload = [{"role": "system", "content": system_prompt}]
-        for msg in history.messages:
-            messages_payload.append({
-                "role": "assistant" if msg.type == "ai" else "user",
-                "content": msg.content,
-            })
-        messages_payload.append({"role": "user", "content": body.message})
         result = llm.invoke(messages_payload)
         response = result.content
 
