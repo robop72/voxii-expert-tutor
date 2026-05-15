@@ -21,6 +21,7 @@ interface Props {
   activeStudentName?: string;
   hasProfile: boolean;
   onSignOut?: () => void;
+  onOpenQuiz?: () => void;
 }
 
 function timeLabel(ts: number) {
@@ -168,7 +169,7 @@ function SessionRow({
 export default function Sidebar({
   sessions, currentId, onNewChat, onLoadSession, onDeleteSession, onTogglePin,
   onRenameSession, dark, onToggleTheme, isOpen, onToggle, onOpenParentPortal,
-  onOpenIntake, onAddStudent, onSwitchStudent, activeStudentName, hasProfile, onSignOut,
+  onOpenIntake, onAddStudent, onSwitchStudent, activeStudentName, hasProfile, onSignOut, onOpenQuiz,
 }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareSessionId, setShareSessionId] = useState<string | null>(null);
@@ -230,6 +231,21 @@ export default function Sidebar({
             {isOpen && <span>New Chat</span>}
           </button>
         </div>
+
+        {/* Practice Quiz */}
+        {isOpen && onOpenQuiz && (
+          <div className="px-3 mb-1">
+            <button
+              onClick={onOpenQuiz}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors border border-indigo-200 dark:border-indigo-800/50"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <span>Practice Quiz</span>
+            </button>
+          </div>
+        )}
 
         {/* Student selector */}
         {isOpen && (
