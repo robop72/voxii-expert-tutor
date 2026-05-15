@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Mic, MicOff, Send, Square, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Send, Square, Volume2, VolumeX, X } from 'lucide-react';
 
 
 function stripForTTS(text: string): string {
@@ -116,10 +116,9 @@ export default function ChatInterface({
     sendMessage(text);
   }
 
-  const handleReadAloud = useCallback(async () => {
+  const handleReadAloud = useCallback(() => {
     if (isReading) {
-      audioRef.current?.pause();
-      audioRef.current = null;
+      window.speechSynthesis.cancel();
       setIsReading(false);
       return;
     }
@@ -127,27 +126,28 @@ export default function ChatInterface({
     const lastTutor = tutorMsgs[tutorMsgs.length - 1];
     if (!lastTutor) return;
     const cleanText = stripForTTS(lastTutor.text).slice(0, 4000);
-    setIsReading(true);
-    try {
-      const ttsHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (accessToken) ttsHeaders['Authorization'] = `Bearer ${accessToken}`;
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: ttsHeaders,
-        body: JSON.stringify({ text: cleanText, session_id: apiSessionId }),
-      });
-      if (!res.ok) throw new Error('TTS failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => { setIsReading(false); URL.revokeObjectURL(url); };
-      audio.onerror = () => { setIsReading(false); URL.revokeObjectURL(url); };
-      audio.play();
-    } catch {
-      setIsReading(false);
+
+    const speak = () => {
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      // Prefer Australian English voice
+      const voices = window.speechSynthesis.getVoices();
+      const auVoice = voices.find(v => v.lang === 'en-AU') ?? voices.find(v => v.lang.startsWith('en'));
+      if (auVoice) utterance.voice = auVoice;
+      utterance.lang = 'en-AU';
+      utterance.rate = 0.95;
+      utterance.onend = () => setIsReading(false);
+      utterance.onerror = () => setIsReading(false);
+      setIsReading(true);
+      window.speechSynthesis.speak(utterance);
+    };
+
+    // Voices may not be loaded yet on first call
+    if (window.speechSynthesis.getVoices().length > 0) {
+      speak();
+    } else {
+      window.speechSynthesis.onvoiceschanged = () => { speak(); };
     }
-  }, [isReading, accessToken, apiSessionId]);
+  }, [isReading]);
 
   const startRecognition = useCallback(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -232,21 +232,32 @@ export default function ChatInterface({
           <Square size={12} />
           Stop
         </button>
+      ) : ttsActive ? (
+        <div className="flex-shrink-0 flex items-center rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+          <button
+            onClick={handleReadAloud}
+            disabled={!hasLastTutorMsg}
+            title="Read last response aloud"
+            className="flex items-center gap-1.5 pl-3 pr-2 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <Volume2 size={12} />
+            Read Aloud
+          </button>
+          <button
+            onClick={() => setTtsActive(false)}
+            title="Turn off read aloud"
+            className="pr-2 py-1.5 pl-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          >
+            <X size={11} />
+          </button>
+        </div>
       ) : (
         <button
-          onClick={() => {
-            if (!ttsActive) { setTtsActive(true); return; }
-            handleReadAloud();
-          }}
-          disabled={ttsActive && !hasLastTutorMsg}
-          title={ttsActive ? 'Read last response aloud' : 'Enable read aloud'}
-          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-            ttsActive
-              ? 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600'
-          }`}
+          onClick={() => setTtsActive(true)}
+          title="Enable read aloud"
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600"
         >
-          <Volume2 size={12} className={ttsActive ? '' : 'opacity-50'} />
+          <VolumeX size={12} className="opacity-60" />
           Read Aloud
         </button>
       )}
