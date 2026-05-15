@@ -520,8 +520,17 @@ async def chat(request: Request, body: ChatRequest, background_tasks: Background
     if clean_sub == "Mathematics" and _SYMPY_AVAILABLE:
         # ── SymPy agent: verify all calculations before responding ────────────
         try:
+            print("[chat] using SymPy agent for Mathematics", flush=True)
+            sympy_instruction = (
+                "\n\n---\nCOMPUTATION RULE: You have access to exact mathematical tools. "
+                "You MUST call a tool for any calculation, equation solving, factoring, "
+                "simplification, or arithmetic — never compute from memory. "
+                "Use solve_equation for equations, factor_polynomial for factoring, "
+                "calculate for arithmetic/surds, simplify_or_expand for algebraic expressions, "
+                "differentiate for derivatives. Always verify with a tool first, then explain."
+            )
             agent_prompt = ChatPromptTemplate.from_messages([
-                ("system", system_prompt),
+                ("system", system_prompt + sympy_instruction),
                 MessagesPlaceholder("chat_history"),
                 ("human", "{input}"),
                 MessagesPlaceholder("agent_scratchpad"),
