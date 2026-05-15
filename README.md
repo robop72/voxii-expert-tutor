@@ -1,215 +1,175 @@
-# llm-math-education: Retrieval augmented generation for middle-school math question answering and hint generation
+# Voxii AI Expert Tutor — Backend + Frontend (Production)
 
-[![arXiv](https://img.shields.io/badge/arXiv-2310.03184-b31b1b.svg)](https://arxiv.org/abs/2310.03184)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8284412.svg)](https://doi.org/10.5281/zenodo.8284412)
-[![License](https://img.shields.io/github/license/DigitalHarborFoundation/llm-math-education)](https://github.com/DigitalHarborFoundation/llm-math-education/blob/main/LICENSE)
+AI-powered tutoring platform for Australian students in Years 7–10 covering Maths, English, and Science. This is the **production environment**. Dev/testing is at [`llm-math-education`](https://github.com/robop72/llm-math-education).
 
-How can we incorporate trusted, external math knowledge in generated answers to student questions?
+**Live URL:** https://voxii-expert-tutor.vercel.app  
+**Backend:** https://voxii-tutor-backend-919882895306.australia-southeast1.run.app
 
-`llm-math-education` is a Python package that implements basic retrieval augmented generation (RAG) and contains prompts for two primary use cases: general math question-answering (QA) and hint generation. It is currently designed to work only with the OpenAI generative chat API.
+---
 
-This project is [hosted on GitHub](https://github.com/DigitalHarborFoundation/llm-math-education).
-Feel free to open an [issue](https://github.com/DigitalHarborFoundation/llm-math-education/issues) with questions, comments, or requests.
+## Architecture
 
-A [fork of this repository at `DigitalHarborFoundation/rag-for-math-qa`](https://github.com/DigitalHarborFoundation/rag-for-math-qa) contains research code and data used to publish [our workshop paper](https://arxiv.org/abs/2310.03184).
+```
+Frontend (Vite + React + TypeScript + Tailwind)
+    └── Vercel (auto-deploy on push to main)
+         └── /api/* Edge Functions → Cloud Run Backend
+                                          └── FastAPI + LangChain + ChromaDB
+                                               └── Supabase (auth + student_concepts)
+```
 
-## Demo
+| Layer | Tech |
+|---|---|
+| Frontend | Vite + React + TypeScript + Tailwind CSS |
+| Auth | Supabase magic link + TOTP MFA |
+| Backend | FastAPI on Google Cloud Run (`australia-southeast1`) |
+| LLM | GPT-4o-mini (`gpt-4o-mini`, temperature 0.2) |
+| Vector DB | ChromaDB (`vcaa_json_index/`, 2,666 docs — VIC/NSW/ACARA) |
+| Maths solver | SymPy via OpenAI function calling |
+| TTS | Google TTS REST API (`en-AU-Standard-A`) |
+| Session memory | In-memory LRU (falls back from Redis if `REDIS_URL` not set) |
+| Student knowledge | Supabase `student_concepts` table, ELO mastery scoring |
 
-You can explore the effects of the retrieval-augmented generation approach by using our [Streamlit app](https://llm-math-education.streamlit.app/About_this_app). You'll need to provide your own OpenAI API key.
+---
 
-Demo link: <https://llm-math-education.streamlit.app>
+## Key Backend Files
 
-## Installation
+| File | Purpose |
+|---|---|
+| `main.py` | FastAPI app — all endpoints, auth, RAG, safety, moderation |
+| `math_solver.py` | SymPy tools + OpenAI function schemas for exact maths computation |
+| `knowledge_graph.py` | Concept extraction + mastery upsert to Supabase after each chat turn |
+| `build_prompt.py` | State-aware system prompt factory |
+| `personalized_prompt.py` | 5-layer personalised prompt with mastery context injection |
+| `intake_classifier.py` | Derives tutor profile from intake questionnaire |
+| `curriculum_authorities.py` | State → DB tag + authority name mapping |
+| `Dockerfile` | Multi-stage build — reuses existing vector DB image to avoid re-indexing |
 
-The `llm-math-education` package is [available on PyPI](https://pypi.org/project/llm-math-education/).
+## Key Frontend Files (`src/`)
+
+| File | Purpose |
+|---|---|
+| `App.tsx` | View state, MFA gate, curriculum badge |
+| `components/ChatInterface.tsx` | Chat UI, TTS toggle, microphone |
+| `components/IntakeForm.tsx` | 5-step onboarding form |
+| `components/QuizView.tsx` | AI-generated MCQ practice quiz |
+| `components/MasteryPanel.tsx` | Knowledge Map — per-concept mastery bars |
+| `components/ParentDashboard.tsx` | Analytics, MFA management, data deletion |
+| `hooks/useChat.ts` | Chat state, JWT auth, 401 → sign out, transparent retry |
+| `api/chat.ts` | Edge function — forwards JWT to Cloud Run |
+| `api/tts.ts` | Edge function — Google TTS (en-AU-Standard-A) |
+| `api/quiz.ts` | Edge function — generates MCQs via OpenAI |
+
+---
+
+## Environment Variables
+
+### Vercel (frontend)
+| Variable | Notes |
+|---|---|
+| `VITE_SUPABASE_URL` | `https://kizrtirljclpqjifrlwh.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Legacy `eyJ...` JWT format |
+| `VITE_BACKEND_URL` | Cloud Run URL |
+| `GOOGLE_TTS_API_KEY` | Google TTS REST API key |
+
+> ⚠️ `VITE_*` vars are baked at build time — redeploy required after changes.
+
+### Cloud Run (backend)
+| Variable | Notes |
+|---|---|
+| `OPENAI_API_KEY` | GPT-4o-mini + embeddings + moderation |
+| `SUPABASE_JWKS` | EC public key JSON for ES256 JWT validation |
+| `SUPABASE_SERVICE_KEY` | Service role key — bypasses RLS for knowledge graph writes |
+| `API_SECRET` | 64-char hex — dev bypass for auth (stored in `.env`) |
+| `MAX_TURNS` | Max exchanges per session (currently `30`) |
+| `REDIS_URL` | Optional — falls back to in-memory LRU if not set |
+
+---
+
+## Curriculum Coverage
+
+State curriculum routing selects the correct ChromaDB partition per student:
+
+| State | DB Tag | Authority |
+|---|---|---|
+| VIC | `VIC` | VCAA (Victorian Curriculum 2.0) |
+| NSW | `NSW` | NESA |
+| QLD, WA, SA, ACT, TAS, NT | `ACARA` | QCAA / SCSA / SACE Board |
+
+3-tier RAG fallback: `state+year+subject` → `state+subject` → `year+subject`
+
+---
+
+## Features
+
+- Magic link auth + TOTP MFA (Supabase)
+- 5-step parental consent + intake form
+- Multi-student profiles (localStorage)
+- State curriculum routing (all 8 states/territories)
+- SymPy maths solver — exact computation via OpenAI function calling
+- Adaptive knowledge graph — ELO mastery scoring per concept, injected into system prompt
+- NAPLAN mode (Years 7 & 9, Maths/English)
+- Practice Quiz — AI-generated MCQs with per-question feedback
+- TTS read-aloud (Google TTS en-AU)
+- Microphone input (Web Speech API, en-AU)
+- Keyword highlighting (`==term==` → indigo highlight)
+- Starter cards — 3 random topic cards from pool of 12 per subject/year
+- Session summaries for cross-session continuity
+- Parent Dashboard — analytics, safety reports, PIN reset, data deletion
+- OpenAI content moderation on input + output
+- Crisis response with AU helplines (Kids Helpline, Lifeline, Beyond Blue)
+- Dark mode
+- Transparent retry on cold-start (retries once after 3s on 5xx)
+
+---
+
+## Deployment
+
+### Frontend
+```bash
+git push  # Vercel auto-deploys
+```
+
+### Backend (Cloud Run)
+```bash
+git push  # GitHub Actions builds Docker image and deploys to Cloud Run
+```
+
+> ⚠️ `gcloud run deploy --source .` is broken (Cloud Build SA missing). Use GitHub Actions only.  
+> ⚠️ GCP Console "Edit & Deploy New Revision" does NOT rebuild code — only use it for env var / SA changes.  
+> Always select SA: `voxii-cloudrun@voxii-backend-2026.iam.gserviceaccount.com`  
+> Always keep: Min instances = 1 (prevents cold-start timeouts)
+
+### Dev → Prod Sync
+1. Test changes in this repo (`llm-math-education`)
+2. `cp` changed files to `voxii-expert-tutor/` — always include `src/hooks/` if frontend changed
+3. Push prod repo — Vercel and Cloud Run auto-deploy
+
+---
+
+## Local Development
 
 ```bash
-pip install llm-math-education
+# Frontend
+npm install
+npm run dev  # http://localhost:5173
+
+# Backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8080
 ```
 
-## Usage
+Set `API_SECRET` in `.env` to use the dev auth bypass instead of Supabase JWT.
 
-We assume that `OPENAI_API_KEY` is provided as an environment variable or set via `openai.api_key = your_api_key`.
+---
 
-Preliminary setup: specify a directory in which to save the embedding database.
-```python
-from pathlib import Path
-demo_dir = Path("data") / "demo"
-demo_dir.mkdir(exist_ok=True)
-```
+## GCP Project
+- **Project:** `voxii-backend-2026`
+- **Region:** `australia-southeast1`
+- **Service:** `voxii-tutor-backend`
+- **Artifact Registry:** `australia-southeast1-docker.pkg.dev/voxii-backend-2026/cloud-run-source-deploy`
 
-We'll use `llm-math-education` to answer a student question.
-```python
-student_question = "How do I identify common factors?"
-```
-
-These usage examples can be seen together in [src/usage_demo.py](/src/usage_demo.py).
-
-### Acquiring textbook data for retrieval augmented generation
-
-To do retrieval augmented generation, we need data.
-We'll use an OpenStax Pre-algebra textbook as our retrieval data.
-
-Note: the `llm_math_education.openstax` module relies on `requests` and `beautifulsoup4`, which are not listed as dependencies. Install them yourself with `pip` if you want to download and parse OpenStax textbooks.
-
-```python
-from llm_math_education import openstax
-prealgebra_textbook_url = "https://openstax.org/books/prealgebra-2e/pages/1-introduction"
-textbook_data = openstax.cache_openstax_textbook_contents(prealgebra_textbook_url, demo_dir / "openstax")
-df = openstax.get_subsection_dataframe(textbook_data)
-
->>> df.columns
-Index(['title', 'content', 'index', 'chapter', 'section'], dtype='object')
-```
-
-The parsing code is probably very brittle; it has only been tested with the Pre-algebra textbook.
-
-### Creating an embedding lookup database from a dataframe
-
-```python
-from llm_math_education import retrieval
-db_name = "openstax_prealgebra"
-text_column_to_embed = "content"
-openstax_db = retrieval.RetrievalDb(demo_dir, db_name, text_column_to_embed, df)
-openstax_db.create_embeddings()
-openstax_db.save_df()
-```
-
-### Loading an existing embedding database
-
-Here, we compute the "distance" in embedding space between the student question and the documents in the database.
-
-```python
-openstax_db = retrieval.RetrievalDb(demo_dir, "openstax_prealgebra", "content")
-distances = openstax_db.compute_string_distances(student_question)
-
->>> distances
-[0.21348877 0.24298186 0.25825211 ... 0.25500673 0.24491884 0.22458498]
-```
-
-### Using the database to do retrieval augmented generation
-
-#### Defining a retrieval strategy
-
-```python
-from llm_math_education import retrieval_strategies
-db_info = retrieval.DbInfo(
-    openstax_db,
-    max_texts=1,
-)
-strategy = retrieval_strategies.MappedEmbeddingRetrievalStrategy(
-    {
-        "openstax_section": db_info,
-    },
-)
-```
-
-The key in the dictionary passed to the `MappedEmbedding` retrieval strategy identifies the key to be replaced in the prompt, in Python string formatting notation.
-
-#### Starting a chat conversation with RAG
-
-We'll use a `PromptManager` to build chat messages from a prompt, a retrieval strategy, and a user query.
-
-```python
-from llm_math_education import prompt_utils
-pm = prompt_utils.PromptManager()
-pm.set_retrieval_strategy(strategy)
-pm.set_intro_messages(
-    [
-        {
-            "role": "user",
-            "content": """Answer this question: {user_query}
-
-Reference this text in your answer:
-{openstax_section}""",
-        },
-    ],
-)
-messages = pm.build_query(student_question)
-
->>> messages
-[{'role': 'user', 'content': 'Answer this question: How do I identify common factors?'
-''
-'Reference this text in your answer:'
-'We will now look at an expression containing a product that is raised to a power. Look for a pattern. The exponent applies to each of the factors. This leads to the Product to a Power Property for Exponents. An example with numbers helps to verify this property:'}]
-```
-
-We can pass the formatted messages to the OpenAI API.
-
-```python
-import openai
-completion = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo-0613",
-    messages=messages,
-)
-assistant_message = completion["choices"][0]["message"]
-
->>> assistant_message
-{
-  "role": "assistant",
-  "content": "To identify common factors, you need to look for a pattern in an expression containing a product raised to a power. The exponent applies to each of the factors in this case. \n\nFor example, let's consider the expression (ab)^2. Here, (ab) is the product, and the exponent 2 applies to both 'a' and 'b'. To identify the common factors, you can separate the product into its individual factors:\n\n(ab)^2 = ab * ab\n\nNow, you can see that both 'a' and 'b' appear as factors in the expression. Therefore, 'a' and 'b' are the common factors. By identifying the factors that appear in multiple terms, you can determine the common factors of an expression.\n\nUsing numbers to verify this property, suppose we have the expression (2*3)^2, which simplifies to (6)^2. In this case, the common factor is 6, as both 2 and 3 are factors of 6."
-}
-```
-
-#### Using PromptManager for multi-turn chat conversations
-
-Add stored messages to continue the conversation.
-
-```python
-pm.add_stored_message(assistant_message)
-messages = pm.build_query("I have a follow-up question...")
-```
-
-Clear stored messages to start a new conversation on the next call to `build_query()`.
-
-```python
-pm.clear_stored_messages()
-```
-
-### Using built-in prompts for math QA or hint generation
-
-```python
-from llm_math_education.prompts import mathqa as mathqa_prompts
-pm.set_intro_messages(mathqa_prompts.intro_prompts["general_math_qa_intro"])
-```
-
-## Development
-
-See the [developer's guide](/DEVELOPMENT.md).
-
-Primary contributor:
-
- - Zachary Levonian (<levon003@umn.edu>)
-
-Other contributors:
-
- - Owen Henkel
- - Bill Roberts
-
-## FAQ
-
-1. How can I cite this work?
-
-    You should cite [our paper](https://arxiv.org/abs/2310.03184) at the NeurIPS’23 Workshop on Generative AI for Education (GAIED).
-
-    You can cite this using the CITATION.cff file above (and the "Cite this repository" drop-down on GitHub for BibTeX) or the following citation:
-
-    >Zachary Levonian, Chenglu Li, Wangda Zhu, Anoushka Gade, Owen Henkel, Millie-Ellen Postle, and Wanli Xing. 2023. [Retrieval-augmented Generation to Improve Math Question-Answering: Trade-offs Between Groundedness and Human Preference](https://arxiv.org/abs/2310.03184). In _NeurIPS’23 Workshop on Generative AI for Education (GAIED)_, New Orleans, USA. DOI:https://doi.org/10.48550/arXiv.2310.03184
-
-2. How should I use this code?
-
-   We aren't currently planning to add additional features to this package, although pull requests and bug reports are welcome.
-
-   You should use the Python package as a dependency if you want a quick way to try retrieval augmented generation with the OpenAI API.
-   However, this code is likely more useful as inspiration. You should fork or otherwise borrow from various components if you want some of the specific functionality implemented here. Heres a quick overview of the most important modules and their implementation:
-     - `llm_math_education.prompts.{mathqa,hints}` - Contains the prompt templates we use for math QA and hint generation.
-     - `llm_math_education.prompt_utils` - `PromptManager` is an abstraction for iteratively creating conversations that include a retrieval component.
-     - `llm_math_education.retrieval_strategies` - `RetrievalStrategy` and its implementations demonstrates implementations that use embeddings to fill a slot within a prompt template with relevant documents.
-     - `llm_math_education.retrieval` - `RetrievalDb` creates an embedding-backed in-memory lookup database for a Pandas DataFrame with a text column.
-     - `llm_math_education.logit_bias` - Using the most frequent tokens in a retrieved document, creates a [logit_bias](https://help.openai.com/en/articles/5247780-using-logit-bias-to-define-token-probability) that can be used to increase the [faithfulness](https://arxiv.org/abs/2307.16877) of generations based on that retrieved document.
-
-3. What license does this repository use?
-
-   The code is released under the MIT license. The example data used in the Streamlit app is released CC BY-SA 4.0; see the `data/app_data` folder for more info. Additional details on the data are present in the developer's guide.
-   
- 
+## Supabase Project
+- **Project ID:** `kizrtirljclpqjifrlwh`
+- **Region:** Sydney
+- **Tables:** `student_concepts`
+- **RPC:** `update_mastery` (ELO scoring)
