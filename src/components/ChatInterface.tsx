@@ -85,6 +85,7 @@ export default function ChatInterface({
   ttsEnabled = true, apiSessionId, accessToken,
 }: Props) {
   const [input, setInput] = useState('');
+  const [ttsActive, setTtsActive] = useState(ttsEnabled);
   const [isReading, setIsReading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [interimText, setInterimText] = useState('');
@@ -222,19 +223,31 @@ export default function ChatInterface({
 
   const inputBar = (
     <div className="flex items-end gap-2 bg-gray-100/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 rounded-3xl px-4 py-3 focus-within:border-gray-400 dark:focus-within:border-gray-600 transition-colors">
-      {ttsEnabled && (
+      {isReading ? (
         <button
           onClick={handleReadAloud}
-          disabled={!hasLastTutorMsg}
-          title={isReading ? 'Stop reading' : 'Read last response aloud'}
+          title="Stop reading"
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400"
+        >
+          <Square size={12} />
+          Stop
+        </button>
+      ) : (
+        <button
+          onClick={() => {
+            if (!ttsActive) { setTtsActive(true); return; }
+            handleReadAloud();
+          }}
+          disabled={ttsActive && !hasLastTutorMsg}
+          title={ttsActive ? 'Read last response aloud' : 'Enable read aloud'}
           className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-            isReading
-              ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+            ttsActive
+              ? 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600'
           }`}
         >
-          {isReading ? <Square size={12} /> : <Volume2 size={12} />}
-          {isReading ? 'Stop' : 'Read Aloud'}
+          <Volume2 size={12} className={ttsActive ? '' : 'opacity-50'} />
+          Read Aloud
         </button>
       )}
 
