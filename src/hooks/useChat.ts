@@ -175,23 +175,29 @@ export function useChat({ yearLevel, subject, isNaplanMode = false, studentProfi
     const controller = new AbortController();
     abortRef.current = controller;
 
-    try {
+    const chatPayload = JSON.stringify({
+      session_id: apiSessionRef.current,
+      message: text.trim(),
+      year_level: `Year ${yearLevelRef.current}`,
+      subject: subjectRef.current,
+      is_naplan_mode: isNaplanModeRef.current,
+      student_profile: studentProfileRef.current ?? undefined,
+      session_context: recentSummariesRef.current.length > 0 ? recentSummariesRef.current : undefined,
+    });
+
+    const doFetch = async () => {
       const chatHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
       if (accessTokenRef.current) chatHeaders['Authorization'] = `Bearer ${accessTokenRef.current}`;
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: chatHeaders,
-        body: JSON.stringify({
-          session_id: apiSessionRef.current,
-          message: text.trim(),
-          year_level: `Year ${yearLevelRef.current}`,
-          subject: subjectRef.current,
-          is_naplan_mode: isNaplanModeRef.current,
-          student_profile: studentProfileRef.current ?? undefined,
-          session_context: recentSummariesRef.current.length > 0 ? recentSummariesRef.current : undefined,
-        }),
-        signal: controller.signal,
-      });
+      return fetch('/api/chat', { method: 'POST', headers: chatHeaders, body: chatPayload, signal: controller.signal });
+    };
+
+    try {
+      let res = await doFetch();
+      // Transparent retry once on cold-start timeout (5xx or network error)
+      if (!res.ok && res.status !== 401) {
+        await new Promise(r => setTimeout(r, 3000));
+        if (!controller.signal.aborted) res = await doFetch();
+      }
       if (res.status === 401) { onUnauthorizedRef.current?.(); return; }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
