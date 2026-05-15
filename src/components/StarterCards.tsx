@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { YearLevel, Subject, starterCardsConfig, isYearLevel } from '../lib/curriculumConfig';
 
 interface Props {
@@ -7,10 +7,17 @@ interface Props {
   onSelect: (prompt: string) => void;
 }
 
+function pickRandom<T>(arr: T[], n: number): T[] {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, n);
+}
+
 export default function StarterCards({ yearLevel, subject, onSelect }: Props) {
   if (!isYearLevel(yearLevel)) return null;
-  const cards = starterCardsConfig[subject]?.[yearLevel];
-  if (!cards) return null;
+  const pool = starterCardsConfig[subject]?.[yearLevel];
+  if (!pool) return null;
+
+  const [cards] = useState(() => pickRandom(pool, 3));
 
   return (
     <div className="grid grid-cols-3 gap-2 w-full">
