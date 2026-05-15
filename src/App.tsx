@@ -235,6 +235,7 @@ export default function App() {
         onSwitchStudent={profiles.length > 1 ? () => setView('profile-picker') : undefined}
         activeStudentName={profile?.student_name || undefined}
         hasProfile={profile !== null}
+        onSignOut={supabaseEnabled ? signOut : undefined}
       />
 
       <div className="flex flex-col flex-1 min-w-0">
