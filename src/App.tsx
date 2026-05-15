@@ -11,6 +11,7 @@ import StreakDisplay from './components/StreakDisplay';
 import MilestoneModal from './components/MilestoneModal';
 import QuizView from './components/QuizView';
 import MfaVerify from './components/MfaVerify';
+import MasteryPanel from './components/MasteryPanel';
 import { useTheme } from './hooks/useTheme';
 import { useChat } from './hooks/useChat';
 import { useStudentProfile } from './hooks/useStudentProfile';
@@ -22,7 +23,7 @@ import type { Message } from './hooks/useChat';
 import { YearLevel, Subject, ALLOWED_YEAR_LEVELS, ALLOWED_SUBJECTS } from './lib/curriculumConfig';
 import { getCurriculumAuthority, getCurriculumFullName } from './lib/studentProfile';
 
-type View = 'chat' | 'parent-pin' | 'parent-dashboard' | 'intake' | 'intake-new' | 'profile-picker' | 'quiz';
+type View = 'chat' | 'parent-pin' | 'parent-dashboard' | 'intake' | 'intake-new' | 'profile-picker' | 'quiz' | 'knowledge-map';
 
 export default function App() {
   // ── All hooks must be called unconditionally before any early returns ──────
@@ -107,6 +108,7 @@ export default function App() {
     profileId: activeProfileId,
     recentSummaries: getRecentForSubject(subject),
     onSessionComplete: handleSessionComplete,
+    onUnauthorized: supabaseEnabled ? signOut : undefined,
   });
 
   const sendMessage = useCallback((msg: string) => {
@@ -205,6 +207,14 @@ export default function App() {
       onBack={() => setView('chat')}
     />
   );
+  if (view === 'knowledge-map') return (
+    <MasteryPanel
+      profileId={activeProfileId}
+      accessToken={session?.access_token}
+      studentName={profile?.student_name}
+      onBack={() => setView('chat')}
+    />
+  );
 
   // Auto-redirect: no profiles → intake; 2+ profiles with no active → picker
   if (profiles.length === 0) {
@@ -248,6 +258,7 @@ export default function App() {
         hasProfile={profile !== null}
         onSignOut={supabaseEnabled ? signOut : undefined}
         onOpenQuiz={profile ? () => setView('quiz') : undefined}
+        onOpenKnowledgeMap={profile ? () => setView('knowledge-map') : undefined}
       />
 
       <div className="flex flex-col flex-1 min-w-0">

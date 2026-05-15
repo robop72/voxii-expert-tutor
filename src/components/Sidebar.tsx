@@ -22,6 +22,7 @@ interface Props {
   hasProfile: boolean;
   onSignOut?: () => void;
   onOpenQuiz?: () => void;
+  onOpenKnowledgeMap?: () => void;
 }
 
 function timeLabel(ts: number) {
@@ -170,6 +171,7 @@ export default function Sidebar({
   sessions, currentId, onNewChat, onLoadSession, onDeleteSession, onTogglePin,
   onRenameSession, dark, onToggleTheme, isOpen, onToggle, onOpenParentPortal,
   onOpenIntake, onAddStudent, onSwitchStudent, activeStudentName, hasProfile, onSignOut, onOpenQuiz,
+  onOpenKnowledgeMap,
 }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareSessionId, setShareSessionId] = useState<string | null>(null);
@@ -243,6 +245,21 @@ export default function Sidebar({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
               <span>Practice Quiz</span>
+            </button>
+          </div>
+        )}
+
+        {/* Knowledge Map */}
+        {isOpen && onOpenKnowledgeMap && (
+          <div className="px-3 mb-1">
+            <button
+              onClick={onOpenKnowledgeMap}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors border border-violet-200 dark:border-violet-800/50"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              <span>Knowledge Map</span>
             </button>
           </div>
         )}

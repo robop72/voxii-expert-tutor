@@ -183,6 +183,7 @@ export function useChat({ yearLevel, subject, isNaplanMode = false, studentProfi
       is_naplan_mode: isNaplanModeRef.current,
       student_profile: studentProfileRef.current ?? undefined,
       session_context: recentSummariesRef.current.length > 0 ? recentSummariesRef.current : undefined,
+      profile_id: profileIdRef.current ?? undefined,
     });
 
     const doFetch = async () => {

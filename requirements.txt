@@ -9,3 +9,11 @@ pypdf
 chromadb
 tiktoken
 pysqlite3-binary
+google-cloud-texttospeech
+slowapi
+limits
+python-dotenv
+redis
+python-jose[cryptography]
+requests
+httpx
