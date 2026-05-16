@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { YearLevel, Subject, starterCardsConfig, isYearLevel } from '../lib/curriculumConfig';
 
 interface Props {
@@ -17,7 +17,8 @@ export default function StarterCards({ yearLevel, subject, onSelect }: Props) {
   const pool = starterCardsConfig[subject]?.[yearLevel];
   if (!pool) return null;
 
-  const [cards] = useState(() => pickRandom(pool, 3));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const cards = useMemo(() => pickRandom(pool, 3), [subject, yearLevel]);
 
   return (
     <div className="grid grid-cols-3 gap-2 w-full">
