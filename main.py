@@ -4,7 +4,9 @@ sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 import os
 import re
+import io
 import json
+import base64
 import hashlib
 import datetime
 import asyncio
@@ -20,7 +22,7 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 
-from fastapi import FastAPI, HTTPException, Request, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Request, Depends, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -602,6 +604,89 @@ async def get_knowledge_graph(
     student_id = f"{sub}__{profile_id}" if profile_id else sub
     concepts = await knowledge_graph.get_all_concepts(student_id)
     return {"concepts": concepts}
+
+
+@app.post("/process-upload")
+@limiter.limit("10/minute")
+async def process_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    _: dict = Depends(verify_auth),
+):
+    MAX_SIZE = 20 * 1024 * 1024  # 20 MB
+    content = await file.read()
+    if len(content) > MAX_SIZE:
+        raise HTTPException(status_code=413, detail="File too large. Maximum 20 MB.")
+
+    filename = file.filename or "upload"
+    ct = (file.content_type or "").lower()
+    fname = filename.lower()
+
+    is_image = ct.startswith("image/") or fname.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp'))
+    is_audio = ct.startswith("audio/") or fname.endswith(('.mp3', '.wav', '.m4a', '.ogg', '.webm'))
+    is_pdf = "pdf" in ct or fname.endswith('.pdf')
+
+    if is_image:
+        ext = fname.rsplit('.', 1)[-1] if '.' in fname else 'jpeg'
+        mime_map = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+                    'gif': 'image/gif', 'webp': 'image/webp'}
+        mime = mime_map.get(ext, 'image/jpeg')
+        b64 = base64.b64encode(content).decode()
+        resp = await asyncio.to_thread(
+            _openai_client.chat.completions.create,
+            model="gpt-4o",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": (
+                        "Carefully extract and transcribe all content from this image. "
+                        "If it contains a maths problem, write it in clear plain text with all numbers, "
+                        "operations, and equations. If it contains notes or text, transcribe everything completely. "
+                        "Be accurate and thorough."
+                    )},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
+                ],
+            }],
+            max_tokens=2000,
+        )
+        extracted = resp.choices[0].message.content or ""
+        file_type = "image"
+
+    elif is_audio:
+        audio_buf = io.BytesIO(content)
+        audio_buf.name = filename
+        transcript = await asyncio.to_thread(
+            _openai_client.audio.transcriptions.create,
+            model="whisper-1",
+            file=audio_buf,
+        )
+        extracted = transcript.text
+        file_type = "audio"
+
+    elif is_pdf:
+        from pypdf import PdfReader
+        reader = PdfReader(io.BytesIO(content))
+        pages = [page.extract_text() or "" for page in reader.pages]
+        extracted = "\n\n".join(pages)
+        file_type = "pdf"
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Please upload a PDF, image (JPG/PNG/WEBP), or audio file (MP3/WAV/M4A).",
+        )
+
+    extracted = extracted.strip()
+    if not extracted:
+        raise HTTPException(status_code=422, detail="Could not extract readable content from this file.")
+
+    print(f"[upload] {file_type} '{filename}' → {len(extracted.split())} words", flush=True)
+    return {
+        "file_type": file_type,
+        "filename": filename,
+        "extracted_text": extracted[:50000],
+        "word_count": len(extracted.split()),
+    }
 
 
 @app.get("/debug-kg")

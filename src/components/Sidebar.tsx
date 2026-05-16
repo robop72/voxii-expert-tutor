@@ -23,6 +23,7 @@ interface Props {
   onSignOut?: () => void;
   onOpenQuiz?: () => void;
   onOpenKnowledgeMap?: () => void;
+  onOpenStudyTools?: () => void;
 }
 
 function timeLabel(ts: number) {
@@ -171,7 +172,7 @@ export default function Sidebar({
   sessions, currentId, onNewChat, onLoadSession, onDeleteSession, onTogglePin,
   onRenameSession, dark, onToggleTheme, isOpen, onToggle, onOpenParentPortal,
   onOpenIntake, onAddStudent, onSwitchStudent, activeStudentName, hasProfile, onSignOut, onOpenQuiz,
-  onOpenKnowledgeMap,
+  onOpenKnowledgeMap, onOpenStudyTools,
 }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareSessionId, setShareSessionId] = useState<string | null>(null);
@@ -245,6 +246,21 @@ export default function Sidebar({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
               <span>Practice Quiz</span>
+            </button>
+          </div>
+        )}
+
+        {/* Study Tools */}
+        {isOpen && onOpenStudyTools && (
+          <div className="px-3 mb-1">
+            <button
+              onClick={onOpenStudyTools}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors border border-emerald-200 dark:border-emerald-800/50"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              <span>Study Tools</span>
             </button>
           </div>
         )}

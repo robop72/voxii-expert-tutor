@@ -1,5 +1,6 @@
 ﻿fastapi
 uvicorn
+python-multipart
 langchain-openai
 langchain-chroma
 langchain-community
