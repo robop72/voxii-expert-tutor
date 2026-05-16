@@ -53,7 +53,7 @@ function splitIntoChunks(text: string, maxLen: number): string[] {
 }
 
 export default function StudyToolsView({ subject, yearLevel, profile, accessToken, onBack }: Props) {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://voxii-tutor-backend-919882895306.australia-southeast1.run.app';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const podcastPlayingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -111,8 +111,15 @@ export default function StudyToolsView({ subject, yearLevel, profile, accessToke
         body: formData,
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Processing failed' }));
-        throw new Error(err.detail || 'Processing failed');
+        let detail = `Server error ${res.status}`;
+        try {
+          const err = await res.json();
+          detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
+        } catch {
+          const text = await res.text().catch(() => '');
+          if (text) detail = text.slice(0, 200);
+        }
+        throw new Error(detail);
       }
       const data: ProcessedContent = await res.json();
       setContent(data);
